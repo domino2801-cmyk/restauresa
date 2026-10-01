@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
  * Exécute une fonction asynchrone et expose son état.
@@ -14,11 +14,17 @@ export function useAsync(fn) {
   // Nouvelle fonction (paramètres modifiés) : passage en chargement, sans effet.
   if (state.fn !== fn) setState((s) => ({ ...s, fn, loading: true, error: null }))
 
+  // Identifiant de la dernière requête : une réponse n'est appliquée que si
+  // aucune requête plus récente (chargement ou rechargement) n'a été lancée.
+  const latest = useRef(0)
+
   useEffect(() => {
+    const id = ++latest.current
     let cancelled = false
+    const isCurrent = () => !cancelled && id === latest.current
     fn().then(
-      (data) => !cancelled && setState({ fn, data, error: null, loading: false }),
-      (error) => !cancelled && setState((s) => ({ ...s, error, loading: false })),
+      (data) => isCurrent() && setState({ fn, data, error: null, loading: false }),
+      (error) => isCurrent() && setState((s) => ({ ...s, error, loading: false })),
     )
     return () => {
       cancelled = true
@@ -26,11 +32,12 @@ export function useAsync(fn) {
   }, [fn])
 
   const reload = useCallback(async () => {
+    const id = ++latest.current
     try {
       const data = await fn()
-      setState({ fn, data, error: null, loading: false })
+      if (id === latest.current) setState({ fn, data, error: null, loading: false })
     } catch (error) {
-      setState((s) => ({ ...s, error, loading: false }))
+      if (id === latest.current) setState((s) => ({ ...s, error, loading: false }))
     }
   }, [fn])
 

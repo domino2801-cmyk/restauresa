@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { API_CACHE_NAME } from '../lib/constants'
 import { fetchProfile } from '../services/profiles'
 import { signOut as signOutRequest } from '../services/auth'
 import { AuthContext } from './auth-context'
@@ -33,7 +34,10 @@ export function AuthProvider({ children }) {
       setSessionLoading(false)
     })
     // Pas de requête Supabase dans ce callback (recommandation supabase-js).
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // Déconnexion (manuelle ou expiration) : on purge les données mises en
+      // cache hors-ligne pour qu'elles ne soient pas servies à un autre utilisateur.
+      if (event === 'SIGNED_OUT' && 'caches' in window) caches.delete(API_CACHE_NAME)
       setSession(nextSession)
       setSessionLoading(false)
     })

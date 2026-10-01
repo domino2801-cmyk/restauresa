@@ -37,7 +37,8 @@ export async function updateProfile(id, changes) {
   if (error) throw error
 }
 
-export async function deleteProfile(id) {
-  const { error } = await supabase.from('profiles').delete().eq('id', id)
+/** Supprime le compte (auth + profil par cascade) — réservé à l'administrateur. */
+export async function deleteUserAccount(id) {
+  const { error } = await supabase.rpc('admin_delete_user', { p_user_id: id })
   if (error) throw error
 }

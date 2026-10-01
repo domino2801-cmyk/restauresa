@@ -21,7 +21,7 @@ construite avec **React + Vite + Tailwind CSS** et intégrée à **Supabase**
 
 | Rôle | Accueil | Contenu |
 | --- | --- | --- |
-| **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine**. |
+| **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section, suppression du compte via la fonction `admin_delete_user`) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine**. |
 | **ADU** – Adjudant de compagnie (`adu`) | `/adu` | Qui a réservé dans sa compagnie (par date et service), **triable par section / nom / statut**, filtre réservés / non réservés, synthèse par section, pointage de présence, **export CSV** et **validation de l'effectif** transmis aux cuisines. |
 | **CDU** – Commandant de compagnie (`cdu`) | `/cdu` | KPIs (taux de réservation, **taux de présence**, coût estimé, effectifs à approuver), graphiques par jour et par section, **revue des effectifs** (approbation / rejet motivé). |
 | **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas de la semaine. Accessible aussi aux autres rôles via « Mes repas ». |
@@ -31,7 +31,9 @@ construite avec **React + Vite + Tailwind CSS** et intégrée à **Supabase**
 - Manifest + service worker générés par `vite-plugin-pwa` (Workbox) : application
   **installable** sur smartphone, ressources pré-cachées, mise à jour automatique.
 - Les lectures de l'API Supabase sont mises en cache (stratégie *network first*) pour
-  une consultation hors-ligne des dernières données.
+  une consultation hors-ligne des dernières données. Ce cache est purgé à la
+  déconnexion (manuelle ou expiration de session) afin de ne pas exposer ces données
+  à un autre utilisateur du même appareil.
 - Icônes générées depuis `public/favicon.svg` (`npm run generate-pwa-assets`).
 
 ## Structure

@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useOrganization } from '../../hooks/useOrganization'
 import { ROLE_LABELS } from '../../lib/constants'
 import { errorMessage } from '../../lib/errors'
-import { deleteProfile, fetchProfiles, updateProfile } from '../../services/profiles'
+import { deleteUserAccount, fetchProfiles, updateProfile } from '../../services/profiles'
 
 const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
 const FILTERS = [
@@ -43,10 +43,10 @@ function UserRow({ user, org, isSelf, onSaved }) {
   }
 
   const remove = async () => {
-    if (!window.confirm(`Supprimer définitivement le profil de ${user.full_name} ?`)) return
+    if (!window.confirm(`Supprimer définitivement le compte de ${user.full_name} ?`)) return
     setSaving(true)
     try {
-      await deleteProfile(user.id)
+      await deleteUserAccount(user.id)
       await onSaved()
     } catch (err) {
       setError(errorMessage(err))

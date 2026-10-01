@@ -41,3 +41,6 @@ export const OTP_LENGTH = 6
 
 /** Clé de stockage de l'email en attente de validation OTP. */
 export const PENDING_EMAIL_KEY = 'restauresa:pending-email'
+
+/** Cache du service worker contenant les réponses REST Supabase (données utilisateur). */
+export const API_CACHE_NAME = 'supabase-rest'

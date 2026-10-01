@@ -63,7 +63,7 @@ create table public.profiles (
 );
 
 create index profiles_company_id_idx on public.profiles (company_id);
-create index profiles_full_name_lower_idx on public.profiles (lower(full_name));
+create index profiles_full_name_lower_idx on public.profiles (lower(trim(full_name)));
 
 -- -----------------------------------------------------------------------------
 -- Repas, menus, réservations
@@ -283,6 +283,11 @@ begin
 
   if old.user_id <> auth.uid() then
     new.status := old.status;
+  elsif new.status <> old.status and not exists (
+    select 1 from public.menus m
+    where m.id = old.menu_id and m.menu_date >= current_date
+  ) then
+    raise exception 'Réservation clôturée pour ce repas';
   end if;
 
   return new;
@@ -476,3 +481,26 @@ $$;
 
 revoke execute on function public.login_email_for_name(text) from public, anon, authenticated;
 grant execute on function public.login_email_for_name(text) to service_role;
+
+-- -----------------------------------------------------------------------------
+-- Suppression d'un compte par l'administrateur : supprime l'utilisateur
+-- d'auth.users (le profil et ses réservations suivent par cascade), afin
+-- qu'aucun compte d'authentification orphelin ne subsiste.
+-- -----------------------------------------------------------------------------
+create or replace function public.admin_delete_user(p_user_id uuid)
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Action réservée aux administrateurs';
+  end if;
+  if p_user_id = auth.uid() then
+    raise exception 'Impossible de supprimer votre propre compte';
+  end if;
+  delete from auth.users where id = p_user_id;
+end;
+$$;
+
+revoke execute on function public.admin_delete_user(uuid) from public, anon;
+grant execute on function public.admin_delete_user(uuid) to authenticated;

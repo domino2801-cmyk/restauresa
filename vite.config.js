@@ -2,6 +2,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { API_CACHE_NAME } from './src/lib/constants.js'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -40,7 +41,7 @@ export default defineConfig({
             handler: 'NetworkFirst',
             method: 'GET',
             options: {
-              cacheName: 'supabase-rest',
+              cacheName: API_CACHE_NAME,
               networkTimeoutSeconds: 5,
               expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
               cacheableResponse: { statuses: [0, 200] },
