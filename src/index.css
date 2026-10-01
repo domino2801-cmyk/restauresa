@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+
+/* Charte graphique : bleu marine, olive/kaki, gris acier, blanc. */
+@theme {
+  --font-sans: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif;
+
+  --color-navy-50: #eef2f8;
+  --color-navy-100: #d6dfec;
+  --color-navy-200: #aebfd8;
+  --color-navy-300: #7f97bd;
+  --color-navy-500: #2f4e7e;
+  --color-navy-600: #1f3b66;
+  --color-navy-700: #152c4f;
+  --color-navy-800: #0f2442;
+  --color-navy-900: #0b1f3a;
+  --color-navy-950: #071427;
+
+  --color-olive-50: #f4f5ec;
+  --color-olive-100: #e4e7cf;
+  --color-olive-300: #a9b16f;
+  --color-olive-500: #6b7535;
+  --color-olive-600: #59622b;
+  --color-olive-700: #4b5320;
+  --color-olive-800: #3a4019;
+
+  --color-khaki-100: #f1ebdd;
+  --color-khaki-300: #d8c9a5;
+  --color-khaki-400: #c3b091;
+  --color-khaki-600: #9a845b;
+
+  --color-steel-50: #f4f5f2;
+  --color-steel-100: #e6e8e3;
+  --color-steel-200: #cfd3cb;
+  --color-steel-400: #8d938a;
+  --color-steel-600: #565c55;
+  --color-steel-700: #3d423d;
+  --color-steel-800: #2a2e2a;
+  --color-steel-900: #1b1e1b;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-steel-50 text-steel-900 antialiased;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-olive-500;
+  }
+}

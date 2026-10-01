@@ -1,0 +1,24 @@
+# Configuration minimale du CLI Supabase (`supabase start`, `supabase db reset`,
+# `supabase functions deploy`). Les autres paramètres prennent leur valeur par défaut.
+project_id = "restauresa"
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/reset-password"]
+
+[auth.email]
+enable_confirmations = true
+otp_length = 6
+otp_expiry = 3600
+
+[auth.email.template.confirmation]
+subject = "RestauResa — Code de validation"
+content_path = "./supabase/templates/confirmation.html"
+
+# La connexion par nom est ouverte aux visiteurs non authentifiés.
+[functions.login-by-name]
+verify_jwt = false
