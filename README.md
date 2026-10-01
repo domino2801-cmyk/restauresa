@@ -86,6 +86,27 @@ npm run lint       # oxlint
 npm test           # tests unitaires (Vitest + Testing Library)
 ```
 
+## Déploiement sur GitHub Pages
+
+Le workflow `.github/workflows/deploy-pages.yml` construit et publie l'application à chaque
+push sur `main` (ou manuellement depuis l'onglet *Actions*). Dans *Settings > Secrets and
+variables > Actions > Variables*, ajoutez :
+
+- `VITE_SUPABASE_URL` : URL du projet Supabase ;
+- `VITE_SUPABASE_ANON_KEY` : clé publique `anon` ou `publishable` du projet (jamais la
+  clé `service_role`).
+
+Dans *Settings > Pages*, sélectionnez **GitHub Actions** comme source de déploiement.
+Le site sera publié à `https://domino2801-cmyk.github.io/restauresa/`. Le build configure
+le sous-chemin du dépôt, le routage React, la PWA et un repli `404.html` pour les URL
+internes de l'application.
+
+Dans Supabase (*Authentication > URL Configuration*), définissez l'URL du site sur
+`https://domino2801-cmyk.github.io/restauresa/` et ajoutez
+`https://domino2801-cmyk.github.io/restauresa/reset-password` aux Redirect URLs. Appliquez
+également les migrations et déployez la fonction `login-by-name` (voir la configuration
+Supabase ci-dessous).
+
 ## Configuration Supabase
 
 ### 1. Base de données

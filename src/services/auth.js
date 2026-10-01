@@ -72,7 +72,7 @@ export async function signIn(identifier, password) {
 /** Envoie l'email de réinitialisation du mot de passe. */
 export async function requestPasswordReset(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${window.location.origin}/reset-password`,
+    redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}reset-password`,
   })
   if (error) throw error
 }
