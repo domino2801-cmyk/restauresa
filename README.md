@@ -21,7 +21,7 @@ construite avec **React + Vite + Tailwind CSS** et intégrée à **Supabase**
 
 | Rôle | Accueil | Contenu |
 | --- | --- | --- |
-| **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section, suppression du compte via la fonction `admin_delete_user`) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine**. |
+| **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section, suppression du compte via la fonction `admin_delete_user`) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine** ; **email de test** (vérification de l'envoi via Supabase + Resend). |
 | **ADU** – Adjudant de compagnie (`adu`) | `/adu` | Qui a réservé dans sa compagnie (par date et service), **triable par section / nom / statut**, filtre réservés / non réservés, synthèse par section, pointage de présence, **export CSV** et **validation de l'effectif** transmis aux cuisines. |
 | **CDU** – Commandant de compagnie (`cdu`) | `/cdu` | KPIs (taux de réservation, **taux de présence**, coût estimé, effectifs à approuver), graphiques par jour et par section, **revue des effectifs** (approbation / rejet motivé). |
 | **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas de la semaine. Accessible aussi aux autres rôles via « Mes repas ». |
@@ -63,6 +63,7 @@ construite avec **React + Vite + Tailwind CSS** et intégrée à **Supabase**
     ├── config.toml              # Config CLI (OTP 6 chiffres, template email, fonctions)
     ├── migrations/              # Schéma, triggers, fonctions et politiques RLS
     ├── functions/login-by-name/ # Edge Function : connexion par nom
+    ├── functions/send-test-email/ # Edge Function : email de test via Resend
     ├── templates/               # Email de confirmation contenant le code OTP
     └── seed.sql                 # Données de démonstration
 ```
@@ -111,6 +112,8 @@ base de données et l'authentification. Suivez les étapes dans l'ordre :
    ```bash
    npx supabase functions deploy login-by-name --no-verify-jwt
    ```
+   Pour l'envoi d'emails via Resend, déployez aussi `send-test-email` (voir
+   [Emails avec Resend](#5-emails-avec-resend)).
 5. **Renseigner les variables de build** dans GitHub : ouvrez *Settings > Secrets and
    variables > Actions > Variables* et ajoutez `VITE_SUPABASE_URL` (URL du projet) et
    `VITE_SUPABASE_ANON_KEY` (clé publique `anon`/`publishable`). Ces variables sont
@@ -183,6 +186,47 @@ where email = 'admin@exemple.fr';
 
 Les rôles ADU / CDU et la validation des autres comptes se gèrent ensuite depuis
 l'interface Administrateur (onglet *Utilisateurs*).
+
+### 5. Emails avec Resend
+
+L'intégration [Resend](https://resend.com) se fait à deux niveaux :
+
+**a) Email de test depuis l'application.** L'onglet *Administration > Email de test*
+(`/admin/email`) appelle l'Edge Function `send-test-email`, qui vérifie que l'appelant est
+un administrateur validé puis envoie l'email via l'API Resend. La clé Resend reste côté
+serveur (secret de la fonction) et n'est jamais incluse dans le build.
+
+| Secret | Obligatoire | Description |
+| --- | --- | --- |
+| `RESEND_API_KEY` | oui | Clé API Resend (*API Keys* dans le tableau de bord Resend). |
+| `RESEND_FROM` | non | Expéditeur, ex. `RestauResa <noreply@votre-domaine.fr>` (domaine vérifié dans Resend). Défaut : `RestauResa <onboarding@resend.dev>`, qui ne peut écrire qu'à l'adresse du compte Resend. |
+| `RESEND_TEST_RECIPIENT` | non | Destinataire par défaut si le champ est laissé vide. Défaut : l'email de l'administrateur connecté. |
+
+En production :
+
+```bash
+npx supabase secrets set RESEND_API_KEY=re_xxx RESEND_FROM="RestauResa <noreply@votre-domaine.fr>" RESEND_TEST_RECIPIENT=vous@exemple.fr
+npx supabase functions deploy send-test-email
+```
+
+En local :
+
+```bash
+cp supabase/functions/.env.example supabase/functions/.env   # renseigner les valeurs (fichier ignoré par git)
+npx supabase start
+npx supabase functions serve --env-file supabase/functions/.env
+```
+
+Connectez-vous ensuite en administrateur, ouvrez l'onglet **Email de test**, saisissez un
+destinataire (ou laissez vide) et cliquez sur **Envoyer l'email de test**. Les erreurs
+(clé manquante, domaine non vérifié, accès refusé…) sont affichées dans la page.
+
+**b) Emails d'authentification (code OTP, réinitialisation) via le SMTP Resend.** Dans
+*Authentication > Emails > SMTP Settings* du projet Supabase, activez le SMTP
+personnalisé avec : hôte `smtp.resend.com`, port `465`, utilisateur `resend`, mot de passe
+= clé API Resend, et un expéditeur sur un domaine vérifié. En local, la section
+`[auth.email.smtp]` de `supabase/config.toml` peut être décommentée (elle lit
+`RESEND_API_KEY` depuis l'environnement).
 
 ## Modèle de données et sécurité (RLS)
 

@@ -23,6 +23,7 @@ const UsersPage = lazy(() => import('./pages/admin/UsersPage'))
 const OrganizationPage = lazy(() => import('./pages/admin/OrganizationPage'))
 const MealsPage = lazy(() => import('./pages/admin/MealsPage'))
 const WeeklyMenusPage = lazy(() => import('./pages/admin/WeeklyMenusPage'))
+const TestEmailPage = lazy(() => import('./pages/admin/TestEmailPage'))
 const AduDashboardPage = lazy(() => import('./pages/adu/AduDashboardPage'))
 const CduDashboardPage = lazy(() => import('./pages/cdu/CduDashboardPage'))
 
@@ -52,6 +53,7 @@ export function AppRoutes() {
                 <Route path="organization" element={<OrganizationPage />} />
                 <Route path="meals" element={<MealsPage />} />
                 <Route path="menus" element={<WeeklyMenusPage />} />
+                <Route path="email" element={<TestEmailPage />} />
               </Route>
             </Route>
             <Route element={<ProtectedRoute roles={[ROLES.ADU]} />}>

@@ -19,6 +19,21 @@ otp_expiry = 3600
 subject = "RestauResa — Code de validation"
 content_path = "./supabase/templates/confirmation.html"
 
+# Optionnel : envoyer les emails d'authentification (code OTP, réinitialisation)
+# via le SMTP de Resend. Décommentez et définissez RESEND_API_KEY dans l'environnement.
+# [auth.email.smtp]
+# enabled = true
+# host = "smtp.resend.com"
+# port = 465
+# user = "resend"
+# pass = "env(RESEND_API_KEY)"
+# admin_email = "noreply@votre-domaine.fr"
+# sender_name = "RestauResa"
+
 # La connexion par nom est ouverte aux visiteurs non authentifiés.
 [functions.login-by-name]
 verify_jwt = false
+
+# Email de test via Resend : JWT requis (accès vérifié côté fonction : admin validé).
+[functions.send-test-email]
+verify_jwt = true
