@@ -18,13 +18,16 @@ insert into public.companies (id, regiment_id, name) values
   ('00000000-0000-0000-0001-000000000013', '00000000-0000-0000-0000-000000000001', 'GSC'),
   ('00000000-0000-0000-0001-000000000014', '00000000-0000-0000-0000-000000000001', 'PASSAGERS');
 
-insert into public.sections (company_id, name) values
-  ('00000000-0000-0000-0001-000000000001', '1re Section'),
-  ('00000000-0000-0000-0001-000000000001', '2e Section'),
-  ('00000000-0000-0000-0001-000000000001', '3e Section'),
-  ('00000000-0000-0000-0001-000000000002', '1re Section'),
-  ('00000000-0000-0000-0001-000000000002', '2e Section'),
-  ('00000000-0000-0000-0001-000000000003', 'Section commandement');
+insert into public.sections (company_id, name)
+select c.id, s.name
+from public.companies c
+cross join (values
+  ('1ERE SECTION'),
+  ('2EME SECTION'),
+  ('3EME SECTION'),
+  ('SECTION CDT')
+) as s(name)
+where c.regiment_id = '00000000-0000-0000-0000-000000000001';
 
 insert into public.meals (name, description, category, unit_price) values
   ('Petit-déjeuner continental', 'Café, pain, beurre, confiture, jus', 'Petit-déjeuner', 2.10),
