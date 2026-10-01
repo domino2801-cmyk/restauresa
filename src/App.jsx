@@ -73,7 +73,7 @@ export default function App() {
   if (!isSupabaseConfigured) return <ConfigMissingPage />
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <AppRoutes />
       </BrowserRouter>
     </AuthProvider>
