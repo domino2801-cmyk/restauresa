@@ -6,6 +6,7 @@ on:
   schedule:
     - cron: '0 7 * * 3'
     - cron: '0 8 * * 3'
+  workflow_dispatch:
 
 concurrency:
   group: weekly-reservation-reminder
@@ -20,13 +21,19 @@ jobs:
           SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           WEEKLY_REMINDER_SECRET: ${{ secrets.WEEKLY_REMINDER_SECRET }}
+          REMINDER_TEST_MODE: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           test -n "$SUPABASE_URL" || (echo "Set the VITE_SUPABASE_URL repository variable." && exit 1)
           test -n "$SUPABASE_ANON_KEY" || (echo "Set the VITE_SUPABASE_ANON_KEY repository variable." && exit 1)
           test -n "$WEEKLY_REMINDER_SECRET" || (echo "Set the WEEKLY_REMINDER_SECRET repository secret." && exit 1)
+          if [[ "$REMINDER_TEST_MODE" == "true" ]]; then
+            payload='{"test":true}'
+          else
+            payload='{}'
+          fi
           curl --fail-with-body --silent --show-error \
             --request POST "$SUPABASE_URL/functions/v1/weekly-reservation-reminder" \
             --header "apikey: $SUPABASE_ANON_KEY" \
             --header "Content-Type: application/json" \
             --header "x-weekly-reminder-secret: $WEEKLY_REMINDER_SECRET" \
-            --data '{}'
+            --data "$payload"

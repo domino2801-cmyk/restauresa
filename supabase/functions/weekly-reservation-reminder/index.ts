@@ -16,6 +16,7 @@ const json = (body: unknown, status = 200) =>
   })
 
 const LOGIN_URL = 'https://domino2801-cmyk.github.io/restauresa/login'
+const TEST_RECIPIENT_EMAIL = 'restauresa.test.20261002@yopmail.com'
 const RESEND_URL = 'https://api.resend.com/emails'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const HTML_ENTITIES: Record<string, string> = {
@@ -92,7 +93,19 @@ Deno.serve(async (request) => {
     return json({ error: 'Authentification invalide.' }, 401)
   }
 
-  if (!isParisWednesdayAtNine(new Date())) {
+  let testMode = false
+  try {
+    const body: unknown = await request.json()
+    testMode =
+      typeof body === 'object' &&
+      body !== null &&
+      'test' in body &&
+      body.test === true
+  } catch {
+    return json({ error: 'Corps de requête JSON invalide.' }, 400)
+  }
+
+  if (!testMode && !isParisWednesdayAtNine(new Date())) {
     return json({ skipped: true, reason: 'Envoi autorisé uniquement le mercredi à 09 h, heure de Paris.' })
   }
 
@@ -119,6 +132,16 @@ Deno.serve(async (request) => {
     return json({ error: 'Impossible de charger les destinataires du rappel.' }, 500)
   }
 
+  if (testMode) {
+    recipients = recipients.filter((recipient) => recipient.email.toLowerCase() === TEST_RECIPIENT_EMAIL)
+    if (recipients.length === 0) {
+      return json(
+        { error: 'Le compte Yopmail de test doit être confirmé et validé avant le test.' },
+        404,
+      )
+    }
+  }
+
   let sent = 0
   let failed = 0
   for (const [index, recipient] of recipients.entries()) {
@@ -129,19 +152,23 @@ Deno.serve(async (request) => {
         headers: {
           Authorization: `Bearer ${resendApiKey}`,
           'Content-Type': 'application/json',
-          'Idempotency-Key': `weekly-reminder-${sendDate}-${recipient.id}`,
+          'Idempotency-Key': `${testMode ? 'weekly-reminder-test' : 'weekly-reminder'}-${sendDate}-${recipient.id}`,
         },
         body: JSON.stringify({
           from,
           to: [recipient.email],
-          subject: 'RestauResa — Réservez vos repas pour la semaine prochaine',
+          subject: testMode
+            ? 'TEST RestauResa — Rappel de réservation hebdomadaire'
+            : 'RestauResa — Réservez vos repas pour la semaine prochaine',
           text:
             `Bonjour ${recipient.fullName},\n\n` +
+            (testMode ? '[TEST — ceci est un message de vérification]\n\n' : '') +
             'Veuillez réserver vos repas pour la semaine prochaine avant le jeudi à 14 h (heure de Paris).\n\n' +
             `Connectez-vous à RestauResa : ${LOGIN_URL}\n\n` +
             'L’équipe RestauResa',
           html:
             `<p>Bonjour ${safeName},</p>` +
+            (testMode ? '<p><strong>TEST — ceci est un message de vérification.</strong></p>' : '') +
             '<p>Veuillez réserver vos repas pour la semaine prochaine avant le <strong>jeudi à 14 h (heure de Paris)</strong>.</p>' +
             `<p><a href="${LOGIN_URL}">Se connecter à RestauResa</a></p>` +
             '<p>L’équipe RestauResa</p>',

@@ -226,6 +226,8 @@ Function `weekly-reservation-reminder` à 09 h, heure de Paris. Il envoie un ema
 individuel aux comptes dont l'adresse est confirmée et le profil validé, avec le rappel
 de réserver les repas de la semaine suivante avant le jeudi à 14 h et un lien direct
 vers la page de connexion.
+Le lancement manuel de ce workflow envoie seulement un email de test au compte Yopmail
+`restauresa.test.20261002@yopmail.com`, et n'est donc pas destiné à relancer la campagne.
 
 Configurez les secrets côté Supabase (la clé Resend et un expéditeur issu d'un domaine
 vérifié sont obligatoires) :
