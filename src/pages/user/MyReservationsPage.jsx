@@ -78,6 +78,7 @@ export default function MyReservationsPage() {
       return isSelected(menu) !== (reservation?.status === 'reserved') || (!reservation && defaultLunch(menu))
     })
     .map((menu) => ({ menuId: menu.id, reserved: isSelected(menu) })) : []
+  const reservationsDone = ready && changes.length === 0 && (confirmed || data.reservations.length > 0)
 
   const toggle = (menu) => {
     if (!isReservationOpen(menu.menu_date)) {
@@ -140,11 +141,11 @@ export default function MyReservationsPage() {
         {actionError ?? errorMessage(error)}
       </Alert>
       <Alert tone="success" className="mb-4">
-        {confirmed && !error ? 'Vos réservations ont été enregistrées.' : null}
+        {reservationsDone ? 'Réservations effectuées.' : null}
       </Alert>
       <Alert tone={bookingOpen ? 'info' : 'warning'} className="mb-4">
         {bookingOpen
-          ? `Confirmez vos repas avant le ${formatReservationDeadline(weekKey)}.`
+          ? reservationsDone ? null : `Confirmez vos repas avant le ${formatReservationDeadline(weekKey)}.`
           : `Réservations clôturées depuis le ${formatReservationDeadline(weekKey)}. Aucune réservation, modification ou annulation n’est possible. Seuls les repas enregistrés sont affichés cochés.`}
       </Alert>
       {loading || (data && data.weekKey !== weekKey) ? (

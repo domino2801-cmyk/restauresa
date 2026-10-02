@@ -103,7 +103,8 @@ describe('MyReservationsPage', () => {
       { menuId: 'dej', reserved: true },
       { menuId: 'pdj', reserved: false },
     ])))
-    await screen.findByText('Vos réservations ont été enregistrées.')
+    await screen.findByText('Réservations effectuées.')
+    expect(screen.queryByText(/Confirmez vos repas avant le/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Confirmer mes réservations' })).toBeDisabled()
   })
 
@@ -138,7 +139,7 @@ describe('MyReservationsPage', () => {
       { menuId: `${days[4]}-diner`, reserved: true },
       { menuId: `${days[5]}-dejeuner`, reserved: true },
     ])))
-    await screen.findByText('Vos réservations ont été enregistrées.')
+    await screen.findByText('Réservations effectuées.')
   })
 
   it('affiche lundi à vendredi par défaut et le week-end uniquement si la case est cochée', async () => {
@@ -225,7 +226,7 @@ describe('MyReservationsPage', () => {
     const mondayLunch = await screen.findByRole('checkbox', { name: `Déjeuner ${mondayLabel}` })
     fireEvent.click(mondayLunch)
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer mes réservations' }))
-    await screen.findByText('Vos réservations ont été enregistrées.')
+    await screen.findByText('Réservations effectuées.')
     expect(saveMealSelections).toHaveBeenCalledWith('user-1', expect.arrayContaining([
       { menuId: 'default-dej-0', reserved: false },
     ]))
@@ -233,6 +234,26 @@ describe('MyReservationsPage', () => {
     await renderReservations()
     expect(await screen.findByRole('checkbox', { name: `Déjeuner ${mondayLabel}` })).not.toBeChecked()
     expect(screen.getByRole('button', { name: 'Confirmer mes réservations' })).toBeDisabled()
+    expect(screen.getByText('Réservations effectuées.')).toBeInTheDocument()
+    expect(screen.queryByText(/Confirmez vos repas avant le/)).not.toBeInTheDocument()
+  })
+
+  it('réaffiche le rappel si les choix sont modifiés après confirmation', async () => {
+    await renderReservations()
+    await screen.findByRole('checkbox', { name: `Déjeuner ${mondayLabel}` })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer mes réservations' }))
+    await screen.findByText('Réservations effectuées.')
+    expect(screen.queryByText(/Confirmez vos repas avant le/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: `Déjeuner ${fridayLabel}` }))
+    expect(screen.queryByText('Réservations effectuées.')).not.toBeInTheDocument()
+    expect(screen.getByText(/Confirmez vos repas avant le/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer mes réservations' }))
+    await screen.findByText('Réservations effectuées.')
+    expect(screen.queryByText(/Confirmez vos repas avant le/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Semaine suivante' }))
+    expect(screen.queryByText('Réservations effectuées.')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Semaine précédente' }))
+    await screen.findByText('Réservations effectuées.')
   })
 
   it('affiche les erreurs et conserve les choix pour réessayer', async () => {
@@ -241,10 +262,11 @@ describe('MyReservationsPage', () => {
     await screen.findByRole('checkbox', { name: `Déjeuner ${mondayLabel}` })
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer mes réservations' }))
     await screen.findByText('Enregistrement impossible.')
-    expect(screen.queryByText('Vos réservations ont été enregistrées.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Réservations effectuées.')).not.toBeInTheDocument()
+    expect(screen.getByText(/Confirmez vos repas avant le/)).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: `Déjeuner ${mondayLabel}` })).toBeChecked()
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer mes réservations' }))
-    await screen.findByText('Vos réservations ont été enregistrées.')
+    await screen.findByText('Réservations effectuées.')
     expect(saveMealSelections).toHaveBeenCalledTimes(2)
   })
 
@@ -284,7 +306,7 @@ describe('MyReservationsPage', () => {
     await renderReservations()
     expect(screen.getByRole('checkbox', { name: `Déjeuner ${mondayLabel}` })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer mes réservations' }))
-    await screen.findByText('Vos réservations ont été enregistrées.')
+    await screen.findByText('Réservations effectuées.')
     expect(saveMealSelections).toHaveBeenCalledTimes(1)
   })
 

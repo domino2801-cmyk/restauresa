@@ -41,6 +41,10 @@ Ces présélections et toutes les modifications de cases restent en brouillon ju
 clic sur **« Confirmer mes réservations »**. Les choix sont enregistrés ensemble ;
 un DEJ décoché explicitement reste décoché après rechargement. Le total hebdomadaire
 ne compte que les réservations enregistrées, pas les présélections.
+Après confirmation réussie, le rappel « Confirmez vos repas avant le… » est
+remplacé par **« Réservations effectuées »**. Ce statut reste visible après
+rechargement lorsque les choix affichés sont enregistrés. Une modification non
+confirmée réaffiche le rappel ; après clôture, l'avertissement de fermeture reste visible.
 
 La grille « Mes repas » s'adapte aux petits écrans sans défilement horizontal :
 les colonnes PDJ / DEJ / DIN restent visibles, les dates peuvent revenir à la ligne
