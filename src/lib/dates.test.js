@@ -1,6 +1,17 @@
-import { addDays, formatDayLabel, formatReservationDeadline, fromISODate, isReservationOpen, isTodayOrFuture, reservationDeadline, startOfWeek, toISODate, weekDays } from './dates'
+import { addDays, aduReservationDeadline, formatDayLabel, formatReservationDeadline, fromISODate, isAduReservationOpen, isReservationOpen, isTodayOrFuture, reservationDeadline, startOfWeek, toISODate, weekDays } from './dates'
 
 describe('dates', () => {
+  it.each([
+    ['2026-10-05', '2026-10-03T12:00:00.000Z'],
+    ['2026-10-11', '2026-10-09T12:00:00.000Z'],
+    ['2026-11-02', '2026-10-31T13:00:00.000Z'],
+    ['2026-03-30', '2026-03-28T13:00:00.000Z'],
+    ['2026-10-26', '2026-10-24T12:00:00.000Z'],
+  ])('calcule J-2 à 14 h pour l’ADU : %s', (date, expected) => {
+    expect(aduReservationDeadline(date).toISOString()).toBe(expected)
+    expect(isAduReservationOpen(date, new Date(Date.parse(expected) - 1))).toBe(true)
+    expect(isAduReservationOpen(date, new Date(expected))).toBe(false)
+  })
   it('formate et parse les dates ISO locales', () => {
     expect(toISODate(new Date(2026, 0, 5))).toBe('2026-01-05')
     expect(toISODate(fromISODate('2026-12-31'))).toBe('2026-12-31')

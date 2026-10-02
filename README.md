@@ -22,7 +22,7 @@ construite avec **React + Vite + Tailwind CSS** et intégrée à **Supabase**
 | Rôle | Accueil | Contenu |
 | --- | --- | --- |
 | **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section, suppression du compte via la fonction `admin_delete_user`) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine** ; **email de test** (vérification de l'envoi via Supabase + Resend). |
-| **ADU** – Adjudant de compagnie (`adu`) | `/adu` | Qui a réservé dans sa compagnie (par date et service), **triable par section / nom / statut**, filtre réservés / non réservés, synthèse par section, pointage de présence, **export CSV** et **validation de l'effectif** transmis aux cuisines. |
+| **ADU** – Adjudant de compagnie (`adu`) | `/adu` | Qui a réservé dans sa compagnie (par date et service), **triable par section / nom / statut**, filtre réservés / non réservés, **réservation / annulation pour tous les personnels de sa CIE jusqu'à J-2 à 14 h**, synthèse par section, pointage de présence, **export CSV** et **validation de l'effectif** transmis aux cuisines. |
 | **CDU** – Commandant de compagnie (`cdu`) | `/cdu` | KPIs (taux de réservation, **taux de présence**, coût estimé, effectifs à approuver), graphiques par jour et par section, **revue des effectifs** (approbation / rejet motivé). |
 | **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas du lundi au vendredi, avec une case **« Week-end »** pour afficher samedi et dimanche. Masquer le week-end conserve les réservations existantes et leur inclusion dans le total hebdomadaire. Accessible aussi aux autres rôles via « Mes repas ». |
 
@@ -42,6 +42,19 @@ La migration `20261002000000_reservation_deadline.sql` applique aussi la règle
 aux insertions, mises à jour et upserts Supabase. Elle doit être appliquée avec
 `npx supabase db push` avant la publication du frontend. Les droits de correction
 de l'administrateur et de pointage de présence de l'ADU restent inchangés.
+
+L'ADU validé peut réserver, réactiver ou annuler les repas de **tous les personnels
+de sa CIE**, lui-même inclus, depuis la colonne « Réservation » de son tableau.
+Chaque changement est enregistré immédiatement et actualise les statistiques.
+Si les chiffres diffèrent d'un effectif déjà transmis, un avertissement demande
+de le mettre à jour, ou de le faire revoir par le CDU s'il a déjà été approuvé.
+La limite est **J-2 à 14 h, heure de Paris, pour chaque date de repas** (jours
+calendaires, week-end inclus : samedi à 14 h pour les repas du lundi).
+Le pointage de présence reste disponible après cette limite. La migration
+`20261002010000_adu_reservation_deadline.sql` ajoute la fonction serveur
+`set_company_reservation` : contrôle du rôle ADU, de la validation du compte,
+de l'appartenance du personnel à sa CIE et de l'échéance. Elle doit être appliquée
+avant publication de cette interface. Les droits du client et du CDU ne sont pas élargis.
 
 ### PWA
 

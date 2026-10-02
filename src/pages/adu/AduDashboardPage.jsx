@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, Select, Spinner, StatCard } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
 import { useAuth } from '../../hooks/useAuth'
 import { HEADCOUNT_STATUS_LABELS, SERVICES, SERVICE_LABELS } from '../../lib/constants'
 import { downloadCSV, toCSV } from '../../lib/csv'
-import { formatDayLabel, toISODate } from '../../lib/dates'
+import { aduReservationDeadline, formatAduReservationDeadline, formatDayLabel, isAduReservationOpen, toISODate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { formatOrganizationName } from '../../lib/organization'
 import { groupBySection, percent, sortMembers } from '../../lib/stats'
@@ -14,6 +14,7 @@ import {
   fetchHeadcounts,
   fetchReservationsForMenus,
   setAttendance,
+  setCompanyReservation,
   submitHeadcount,
 } from '../../services/reservations'
 
@@ -39,6 +40,25 @@ export default function AduDashboardPage() {
   const [filter, setFilter] = useState('all')
   const [actionError, setActionError] = useState(null)
   const [busy, setBusy] = useState(null)
+  const [now, setNow] = useState(() => new Date())
+  const deadline = aduReservationDeadline(date).getTime()
+  const reservationsOpen = now.getTime() < deadline
+
+  useEffect(() => {
+    const refresh = () => setNow(new Date())
+    const delay = deadline - Date.now()
+    const timer = delay > 0 && delay <= 2147483647 ? setTimeout(refresh, delay) : null
+    const interval = setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    refresh()
+    return () => {
+      clearTimeout(timer)
+      clearInterval(interval)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [deadline])
 
   const load = useCallback(async () => {
     if (!companyId) return null
@@ -48,13 +68,14 @@ export default function AduDashboardPage() {
       fetchReservationsForMenus(menuIds),
       fetchHeadcounts(companyId, menuIds),
     ])
-    return { members: members.filter((m) => m.is_validated), menus, reservations, headcounts }
+    return { date, members, menus, reservations, headcounts }
   }, [companyId, date])
 
   const { data, error, loading, reload } = useAsync(load)
+  const ready = data?.date === date && !loading && !error
 
   const view = useMemo(() => {
-    if (!data) return null
+    if (!data || data.date !== date) return null
     const memberIds = new Set(data.members.map((m) => m.id))
     const companyReservations = data.reservations.filter((r) => memberIds.has(r.user_id) && r.status === 'reserved')
     const countFor = (menuId) => companyReservations.filter((r) => r.menu_id === menuId).length
@@ -83,7 +104,7 @@ export default function AduDashboardPage() {
         return { service: s, menu: m, count: m ? countFor(m.id) : null }
       }),
     }
-  }, [data, service, sortKey, filter])
+  }, [data, date, service, sortKey, filter])
 
   const run = async (key, action) => {
     setBusy(key)
@@ -114,6 +135,15 @@ export default function AduDashboardPage() {
     downloadCSV(`effectifs_${date}_${service}.csv`, toCSV(headers, rows))
   }
 
+  const changeReservation = (row, reserved) => {
+    if (!isAduReservationOpen(date)) {
+      setNow(() => new Date())
+      setActionError('Modifications ADU clôturées : échéance de J-2 à 14 h (heure de Paris) dépassée.')
+      return
+    }
+    return run(`booking-${row.id}`, () => setCompanyReservation(row.id, view.menu.id, reserved))
+  }
+
   if (!companyId) {
     return <Alert tone="warning">Aucune compagnie ne vous est affectée. Contactez un administrateur.</Alert>
   }
@@ -124,7 +154,7 @@ export default function AduDashboardPage() {
         title={`CIE — ${formatOrganizationName(profile.company?.name)}`}
         subtitle={formatOrganizationName(profile.regiment?.name)}
         actions={
-          <div className="grid w-full grid-cols-2 gap-2 sm:w-auto">
+          <fieldset disabled={busy !== null} className="grid w-full grid-cols-2 gap-2 sm:w-auto">
             <Input aria-label="Date" type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
             <Select
               aria-label="Service"
@@ -132,7 +162,7 @@ export default function AduDashboardPage() {
               options={SERVICES.map((s) => ({ value: s, label: SERVICE_LABELS[s] }))}
               onChange={(e) => setService(e.target.value)}
             />
-          </div>
+          </fieldset>
         }
       />
       <Alert tone="error" className="mb-4">
@@ -161,6 +191,7 @@ export default function AduDashboardPage() {
                   <button
                     key={s}
                     type="button"
+                    disabled={busy !== null}
                     onClick={() => setService(s)}
                     className={`rounded-md border p-3 text-left ${
                       s === service ? 'border-navy-900 bg-navy-50' : 'border-steel-200 hover:bg-steel-50'
@@ -184,6 +215,16 @@ export default function AduDashboardPage() {
                 )
               }
             >
+              <Alert tone="warning" className="mb-3">
+                {view.headcount && (
+                  view.headcount.reserved_count !== view.reservedCount
+                  || view.headcount.total_members !== data.members.length
+                ) ? (
+                  view.headcount.status === 'approved'
+                    ? 'Les réservations ont changé : l’effectif approuvé ne correspond plus au tableau. Faites revoir cet effectif par le CDU.'
+                    : 'Les réservations ont changé : mettez à jour l’effectif transmis aux cuisines.'
+                ) : null}
+              </Alert>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-steel-700">
                   {view.headcount
@@ -197,7 +238,7 @@ export default function AduDashboardPage() {
                   </Button>
                   <Button
                     variant="secondary"
-                    disabled={!view.menu || view.headcount?.status === 'approved'}
+                    disabled={!ready || !view.menu || view.headcount?.status === 'approved' || busy !== null}
                     loading={busy === 'submit'}
                     onClick={() =>
                       run('submit', () =>
@@ -245,6 +286,11 @@ export default function AduDashboardPage() {
                 </>
               }
             >
+              <Alert tone={reservationsOpen ? 'info' : 'warning'} className="mb-3">
+                {reservationsOpen
+                  ? `Vous pouvez réserver ou annuler les repas de tous les personnels de votre CIE jusqu’au ${formatAduReservationDeadline(date)} (J-2). Chaque case est enregistrée immédiatement.`
+                  : `Modifications ADU clôturées depuis le ${formatAduReservationDeadline(date)} (J-2). Le pointage de présence reste disponible.`}
+              </Alert>
               {!view.menu ? (
                 <EmptyState>Aucun menu publié pour ce service.</EmptyState>
               ) : view.rows.length === 0 ? (
@@ -257,6 +303,7 @@ export default function AduDashboardPage() {
                         <th className="py-2 pr-4">Section</th>
                         <th className="py-2 pr-4">Nom</th>
                         <th className="py-2 pr-4">Statut</th>
+                        <th className="py-2 pr-4">Réservation</th>
                         <th className="py-2">Présence</th>
                       </tr>
                     </thead>
@@ -268,6 +315,16 @@ export default function AduDashboardPage() {
                           <td className="py-2 pr-4">
                             {row.hasReserved ? <Badge tone="olive">Réservé</Badge> : <Badge tone="steel">Non réservé</Badge>}
                           </td>
+                          <td className="py-2 pr-4">
+                            <input
+                              type="checkbox"
+                              className="size-5 accent-olive-700 disabled:cursor-not-allowed"
+                              aria-label={`Réserver ${SERVICE_LABELS[service]} pour ${row.full_name}`}
+                              checked={row.hasReserved}
+                              disabled={!ready || !reservationsOpen || busy !== null}
+                              onChange={(event) => changeReservation(row, event.target.checked)}
+                            />
+                          </td>
                           <td className="py-2">
                             {row.reservation && (
                               <label className="inline-flex items-center gap-2">
@@ -275,7 +332,7 @@ export default function AduDashboardPage() {
                                   type="checkbox"
                                   className="h-4 w-4 accent-olive-700"
                                   checked={row.reservation.attended === true}
-                                  disabled={busy === row.reservation.id}
+                                  disabled={!ready || busy !== null}
                                   onChange={(e) =>
                                     run(row.reservation.id, () => setAttendance(row.reservation.id, e.target.checked))
                                   }

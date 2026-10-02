@@ -1,4 +1,4 @@
-import { cancelReservation, reserveMeal, saveMealSelections } from './reservations'
+import { cancelReservation, reserveMeal, saveMealSelections, setCompanyReservation } from './reservations'
 
 const upsert = vi.fn()
 const single = vi.fn()
@@ -6,8 +6,9 @@ const select = vi.fn(() => ({ single }))
 const eq = vi.fn(() => ({ select }))
 const update = vi.fn(() => ({ eq }))
 const from = vi.fn(() => ({ upsert, update }))
+const rpc = vi.fn()
 vi.mock('../lib/supabase', () => ({
-  supabase: { from: (...args) => from(...args) },
+  supabase: { from: (...args) => from(...args), rpc: (...args) => rpc(...args) },
 }))
 
 describe('saveMealSelections', () => {
@@ -17,6 +18,8 @@ describe('saveMealSelections', () => {
     upsert.mockResolvedValue({ error: null })
     single.mockReset()
     single.mockResolvedValue({ data: { id: 'reservation-1' }, error: null })
+    rpc.mockReset()
+    rpc.mockResolvedValue({ error: null })
   })
 
   it('enregistre les réservations et refus ensemble avec la clé unique utilisateur/menu', async () => {
@@ -60,5 +63,14 @@ describe('saveMealSelections', () => {
   it('signale une annulation refusée par la politique de clôture', async () => {
     single.mockResolvedValue({ error: { code: 'PGRST116' } })
     await expect(cancelReservation('reservation-1')).rejects.toThrow(/Annulation impossible.*clôturée/)
+  })
+
+  it('utilise le contrôle serveur ADU pour modifier un personnel', async () => {
+    await setCompanyReservation('user-2', 'menu-1', false)
+    expect(rpc).toHaveBeenCalledWith('set_company_reservation', {
+      target_user_id: 'user-2', target_menu_id: 'menu-1', reserve: false,
+    })
+    rpc.mockResolvedValue({ error: new Error('Modifications ADU clôturées') })
+    await expect(setCompanyReservation('user-2', 'menu-1', true)).rejects.toThrow('Modifications ADU clôturées')
   })
 })

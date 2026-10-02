@@ -55,8 +55,11 @@ const parisDateTime = new Intl.DateTimeFormat('en-GB', {
 
 /** Jeudi à 14 h, heure de Paris, précédant la semaine du repas. */
 export function reservationDeadline(menuDate) {
-  const thursday = addDays(startOfWeek(fromISODate(menuDate)), -4)
-  const wallTime = Date.UTC(thursday.getFullYear(), thursday.getMonth(), thursday.getDate(), 14)
+  return parisAt14(addDays(startOfWeek(fromISODate(menuDate)), -4))
+}
+
+function parisAt14(day) {
+  const wallTime = Date.UTC(day.getFullYear(), day.getMonth(), day.getDate(), 14)
   const parts = Object.fromEntries(
     parisDateTime.formatToParts(new Date(wallTime)).map(({ type, value }) => [type, value]),
   )
@@ -67,12 +70,29 @@ export function reservationDeadline(menuDate) {
   return new Date(wallTime - (parisTime - wallTime))
 }
 
+/** Limite ADU : deux jours calendaires avant le repas, à 14 h à Paris. */
+export function aduReservationDeadline(menuDate) {
+  return parisAt14(addDays(fromISODate(menuDate), -2))
+}
+
+export function isAduReservationOpen(menuDate, now = new Date()) {
+  return now.getTime() < aduReservationDeadline(menuDate).getTime()
+}
+
+export function formatAduReservationDeadline(menuDate) {
+  return formatDeadline(aduReservationDeadline(menuDate))
+}
+
 export function isReservationOpen(menuDate, now = new Date()) {
   return now.getTime() < reservationDeadline(menuDate).getTime()
 }
 
 export function formatReservationDeadline(menuDate) {
-  return reservationDeadline(menuDate).toLocaleDateString('fr-FR', {
+  return formatDeadline(reservationDeadline(menuDate))
+}
+
+function formatDeadline(deadline) {
+  return deadline.toLocaleDateString('fr-FR', {
     timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   }) + ' à 14 h (heure de Paris)'
 }

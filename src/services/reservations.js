@@ -35,6 +35,16 @@ export async function saveMealSelections(userId, selections) {
   if (error) throw error
 }
 
+/** Modification ADU limitée par le serveur à sa CIE et à J-2 à 14 h. */
+export async function setCompanyReservation(userId, menuId, reserved) {
+  const { error } = await supabase.rpc('set_company_reservation', {
+    target_user_id: userId,
+    target_menu_id: menuId,
+    reserve: reserved,
+  })
+  if (error) throw error
+}
+
 /** Annule une réservation de l'utilisateur connecté. */
 export async function cancelReservation(reservationId) {
   const { error } = await supabase
