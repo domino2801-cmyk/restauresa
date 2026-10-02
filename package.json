@@ -13,6 +13,8 @@
     "generate-pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
+    "qr-scanner": "^1.4.2",
+    "qrcode": "^1.5.4",
     "@supabase/supabase-js": "^2.117.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

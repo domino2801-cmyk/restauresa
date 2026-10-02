@@ -58,7 +58,7 @@ export function AppLayout() {
           </div>
         </div>
         <nav className="mx-auto flex max-w-6xl overflow-x-auto px-2" aria-label="Navigation principale">
-          {links.map((link) => (
+          {[...links, { to: '/checkin', label: 'Scanner mon passage' }].map((link) => (
             <NavLink key={link.to} to={link.to} className={linkClass}>
               {link.label}
             </NavLink>

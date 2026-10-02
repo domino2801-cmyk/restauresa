@@ -16,6 +16,7 @@ const migrations = [
   '20261002010000_adu_reservation_deadline.sql',
   '20261002020000_auto_validate_confirmed_accounts.sql',
   '20261002030000_reservations_without_published_meals.sql',
+  '20261002040000_qr_attendance.sql',
 ]
 
 beforeAll(async () => {
@@ -72,6 +73,76 @@ describe('réservation sans plat publié', () => {
     await asClient(async () => { await ensure(); await ensure() })
     const { rows } = await db.query('select count(*)::int as total,count(meal_id)::int as dishes from public.menus')
     expect(rows[0]).toEqual({ total: 21, dishes: 0 })
+  })
+
+  describe('passage par QR établissement', () => {
+    async function seedToday(status = 'reserved') {
+      const { rows } = await db.query(`
+        insert into public.menus(menu_date,service)
+        values((statement_timestamp() at time zone 'Europe/Paris')::date,'dejeuner') returning id
+      `)
+      await db.query('insert into public.reservations(user_id,menu_id,status) values($1,$2,$3)', [user, rows[0].id, status])
+      const { rows: qr } = await db.query("select 'restauresa:attendance:' || token::text as content from public.establishment_qr")
+      return qr[0].content
+    }
+    const checkin = (content, service = 'dejeuner') =>
+      db.query('select public.check_in_meal($1,$2::public.meal_service)', [content, service])
+
+    it('pointe une réservation du jour après clôture et refuse le double passage', async () => {
+      const content = await seedToday()
+      await asClient(async () => {
+        await checkin(content)
+        await expect(checkin(content)).rejects.toThrow(/déjà validé/)
+      })
+      const { rows } = await db.query('select status,attended from public.reservations')
+      expect(rows).toEqual([{ status: 'reserved', attended: true }])
+      const { rows: counts } = await db.query('select count(*)::int as total from public.reservation_checkins')
+      expect(counts[0].total).toBe(1)
+    })
+
+    it('refuse un code incorrect, un autre service et un repas annulé', async () => {
+      const content = await seedToday('cancelled')
+      await asClient(async () => {
+        await expect(checkin('wrong')).rejects.toThrow(/invalide/)
+        await expect(checkin(content, 'diner')).rejects.toThrow(/Aucune réservation/)
+        await expect(checkin(content)).rejects.toThrow(/Aucune réservation/)
+      })
+    })
+
+    it('ne pointe pas une réservation future ou celle d’un autre compte', async () => {
+      const content = await seedToday()
+      await db.query('update public.reservations set user_id=$1', [member])
+      await asClient(() => expect(checkin(content)).rejects.toThrow(/Aucune réservation/))
+      await db.query('update public.reservations set user_id=$1', [user])
+      await db.exec('update public.menus set menu_date=menu_date+1')
+      await asClient(() => expect(checkin(content)).rejects.toThrow(/Aucune réservation/))
+    })
+
+    it('refuse le compte désactivé et protège le token et les pointages', async () => {
+      const content = await seedToday()
+      await db.query('update public.profiles set is_validated=false where id=$1', [user])
+      await asClient(() => expect(checkin(content)).rejects.toThrow(/compte activé/))
+      await db.query('update public.profiles set is_validated=true where id=$1', [user])
+      await asClient(async () => {
+        await expect(db.query('select public.get_establishment_qr()')).rejects.toThrow(/administrateurs/)
+        await expect(db.query('select * from public.establishment_qr')).rejects.toThrow(/permission denied/)
+        await expect(db.query('insert into public.reservation_checkins select id,now() from public.reservations')).rejects.toThrow(/permission denied/)
+        await db.exec('update public.reservations set attended=true')
+      })
+      const { rows } = await db.query('select attended from public.reservations')
+      expect(rows[0].attended).toBe(null)
+      await db.query("update public.profiles set role='admin' where id=$1", [user])
+      const { rows: qr } = await asClient(() => db.query('select public.get_establishment_qr() as content'))
+      expect(qr[0].content).toBe(content)
+    })
+
+    it('conserve le pointage manuel ADU après la migration', async () => {
+      await seedToday()
+      await db.query("update public.profiles set role='adu' where id=$1", [user])
+      await asClient(() => db.exec('update public.reservations set attended=true'))
+      const { rows } = await db.query('select attended from public.reservations')
+      expect(rows[0].attended).toBe(true)
+    })
   })
 
   it('enregistre et annule une réservation sans plat tout en conservant la clôture client', async () => {

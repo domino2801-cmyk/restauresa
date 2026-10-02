@@ -17,6 +17,8 @@ import PendingPage from './pages/PendingPage'
 
 // Interfaces par rôle chargées à la demande (graphiques volumineux).
 const MyReservationsPage = lazy(() => import('./pages/user/MyReservationsPage'))
+const MealCheckinPage = lazy(() => import('./pages/user/MealCheckinPage'))
+const EstablishmentQrPage = lazy(() => import('./pages/admin/EstablishmentQrPage'))
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'))
 const AdminOverviewPage = lazy(() => import('./pages/admin/AdminOverviewPage'))
 const UsersPage = lazy(() => import('./pages/admin/UsersPage'))
@@ -44,6 +46,7 @@ export function AppRoutes() {
           <Route element={<AppLayout />}>
             <Route index element={<RoleRedirect />} />
             <Route path="reservations" element={<MyReservationsPage />} />
+            <Route path="checkin" element={<MealCheckinPage />} />
 
             <Route element={<ProtectedRoute roles={[ROLES.ADMIN]} />}>
               <Route path="admin" element={<AdminLayout />}>
@@ -52,6 +55,7 @@ export function AppRoutes() {
                 <Route path="organization" element={<OrganizationPage />} />
                 <Route path="meals" element={<MealsPage />} />
                 <Route path="menus" element={<WeeklyMenusPage />} />
+                <Route path="qr" element={<EstablishmentQrPage />} />
               </Route>
             </Route>
             <Route element={<ProtectedRoute roles={[ROLES.ADU]} />}>

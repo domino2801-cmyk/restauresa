@@ -6,6 +6,7 @@ const TABS = [
   { to: '/admin/organization', label: 'Organisation' },
   { to: '/admin/meals', label: 'Catalogue' },
   { to: '/admin/menus', label: 'Menus de la semaine' },
+  { to: '/admin/qr', label: 'QR établissement' },
 ]
 
 /** Interface Administrateur : sous-navigation par onglets. */

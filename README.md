@@ -87,6 +87,21 @@ Le pointage de présence reste disponible après cette limite. La migration
 de l'appartenance du personnel à sa CIE et de l'échéance. Elle doit être appliquée
 avant publication de cette interface. Les droits du client et du CDU ne sont pas élargis.
 
+### Passage par QR code
+
+L'administration propose **QR établissement** : un QR permanent commun à
+RestauResa, téléchargeable et à afficher au mess. Chaque compte activé dispose
+du lecteur **Scanner mon passage** (caméra arrière, autorisation requise, HTTPS).
+Le client choisit PDJ / DEJ / DIN puis scanne le code. Le serveur ne pointe que
+sa propre réservation `reserved` du jour en **Europe/Paris**, et refuse un code
+incorrect, un repas non réservé/annulé ou un passage déjà validé. Les présélections
+non confirmées ne suffisent pas. Le pointage alimente les statistiques et le
+tableau ADU via `reservations.attended`. Le pointage manuel ADU reste disponible.
+La caméra est arrêtée après le scan, à la sortie de page ou en arrière-plan.
+Le code permanent peut être photographié et partagé : ce dispositif ne garantit
+pas la présence physique. Aucun horaire de service supplémentaire n'est imposé.
+Appliquer `20261002040000_qr_attendance.sql` avant publication du frontend.
+
 ### PWA
 
 - Manifest + service worker générés par `vite-plugin-pwa` (Workbox) : application
