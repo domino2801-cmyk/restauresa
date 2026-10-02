@@ -30,6 +30,12 @@ export const SERVICE_LABELS = Object.freeze({
   diner: 'Dîner',
 })
 
+export const SERVICE_SHORT_LABELS = Object.freeze({
+  petit_dejeuner: 'PDJ',
+  dejeuner: 'DEJ',
+  diner: 'DIN',
+})
+
 export const HEADCOUNT_STATUS_LABELS = Object.freeze({
   submitted: 'En attente',
   approved: 'Approuvé',

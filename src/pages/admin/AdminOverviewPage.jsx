@@ -5,6 +5,7 @@ import { Alert, Card, PageHeader, Spinner, StatCard } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
 import { addDays, formatDayLabel, startOfWeek, toISODate, weekDays } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
+import { formatOrganizationName } from '../../lib/organization'
 import { activeReservations, countByDay, percent } from '../../lib/stats'
 import { fetchMenus } from '../../services/meals'
 import { fetchOrganization } from '../../services/organization'
@@ -42,8 +43,8 @@ export default function AdminOverviewPage() {
       const regiment = data.org.regiments.find((r) => r.id === company.regiment_id)
       return {
         id: company.id,
-        name: company.name,
-        regiment: regiment?.name ?? '',
+        name: formatOrganizationName(company.name),
+        regiment: formatOrganizationName(regiment?.name ?? ''),
         members,
         reservations,
         rate: percent(reservations, members * data.menus.length),
@@ -105,7 +106,7 @@ export default function AdminOverviewPage() {
                   <thead className="text-left text-xs tracking-wider text-steel-600 uppercase">
                     <tr>
                       <th className="py-2 pr-4">Régiment</th>
-                      <th className="py-2 pr-4">Compagnie</th>
+                      <th className="py-2 pr-4">CIE</th>
                       <th className="py-2 pr-4 text-right">Effectif</th>
                       <th className="py-2 pr-4 text-right">Réservations</th>
                       <th className="py-2 text-right">Taux</th>

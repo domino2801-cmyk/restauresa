@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Alert, Button, Card, EmptyState, Input, PageHeader, Spinner } from '../../components/ui'
 import { useOrganization } from '../../hooks/useOrganization'
 import { errorMessage } from '../../lib/errors'
+import { formatOrganizationName } from '../../lib/organization'
 import { createUnit, deleteUnit } from '../../services/organization'
 
 /** Colonne d'une liste d'unités avec ajout / suppression. */
@@ -45,7 +46,7 @@ function UnitColumn({ title, items, selectedId, onSelect, onCreate, onDelete, di
                       selectedId === item.id ? 'bg-navy-900 font-semibold text-white' : 'hover:bg-steel-100'
                     }`}
                   >
-                    {item.name}
+                    {formatOrganizationName(item.name)}
                   </button>
                   <Button size="sm" variant="ghost" aria-label={`Supprimer ${item.name}`} onClick={() => onDelete(item)}>
                     ✕
@@ -80,7 +81,7 @@ export default function OrganizationPage() {
   }
 
   const confirmDelete = (kind, item, after) =>
-    window.confirm(`Supprimer « ${item.name} » et toutes ses sous-unités ?`) &&
+    window.confirm(`Supprimer « ${formatOrganizationName(item.name)} » et toutes ses sous-unités ?`) &&
     run(async () => {
       await deleteUnit(kind, item.id)
       after?.()
@@ -90,7 +91,7 @@ export default function OrganizationPage() {
 
   return (
     <>
-      <PageHeader title="Organisation" subtitle="Régiments, compagnies et sections" />
+      <PageHeader title="Organisation" subtitle="Régiments · CIE · SECT" />
       <Alert tone="error" className="mb-4">
         {error ?? errorMessage(loadError)}
       </Alert>
@@ -107,7 +108,7 @@ export default function OrganizationPage() {
           onDelete={(item) => confirmDelete('regiment', item, () => item.id === regimentId && setRegimentId(null))}
         />
         <UnitColumn
-          title="Compagnies"
+          title="CIE"
           items={org.companies.filter((c) => c.regiment_id === regimentId)}
           selectedId={companyId}
           onSelect={setCompanyId}
@@ -116,9 +117,9 @@ export default function OrganizationPage() {
           onDelete={(item) => confirmDelete('company', item, () => item.id === companyId && setCompanyId(null))}
         />
         <UnitColumn
-          title="Sections"
+          title="SECT"
           items={org.sections.filter((s) => s.company_id === companyId)}
-          disabledReason={!companyId && 'Sélectionnez une compagnie.'}
+          disabledReason={!companyId && 'Sélectionnez une CIE.'}
           onCreate={(name) => run(() => createUnit('section', name, { company_id: companyId }))}
           onDelete={(item) => confirmDelete('section', item)}
         />

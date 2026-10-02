@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
 import { WeekNavigator } from '../../components/WeekNavigator'
-import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
+import { Alert, Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
 import { useAuth } from '../../hooks/useAuth'
-import { SERVICES, SERVICE_LABELS } from '../../lib/constants'
+import { SERVICES, SERVICE_LABELS, SERVICE_SHORT_LABELS } from '../../lib/constants'
 import { addDays, formatDayLabel, isTodayOrFuture, startOfWeek, toISODate, weekDays } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
+import { formatOrganizationName } from '../../lib/organization'
 import { fetchMenus } from '../../services/meals'
 import { cancelReservation, fetchReservationsForMenus, reserveMeal } from '../../services/reservations'
 
@@ -57,7 +58,15 @@ export default function MyReservationsPage() {
     <>
       <PageHeader
         title="Mes repas"
-        subtitle={`${reservedCount} repas réservé${reservedCount > 1 ? 's' : ''} cette semaine`}
+        subtitle={[
+          profile.regiment?.name,
+          profile.company?.name,
+          profile.section?.name,
+        ]
+          .filter(Boolean)
+          .map(formatOrganizationName)
+          .concat(`${reservedCount} repas réservé${reservedCount > 1 ? 's' : ''} cette semaine`)
+          .join(' · ')}
         actions={<WeekNavigator monday={monday} onChange={setMonday} />}
       />
       <Alert tone="error" className="mb-4">
@@ -66,49 +75,69 @@ export default function MyReservationsPage() {
       {loading && !data ? (
         <Spinner />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {days.map((day) => {
-            const editable = isTodayOrFuture(day)
-            return (
-              <Card key={day} title={formatDayLabel(day, { weekday: 'long', day: 'numeric', month: 'long' })}>
-                <ul className="divide-y divide-steel-100">
-                  {SERVICES.map((service) => {
-                    const menu = menuIndex.get(`${day}|${service}`)
-                    const reserved = menu && reservationByMenu.get(menu.id)?.status === 'reserved'
-                    return (
-                      <li key={service} className="flex items-center justify-between gap-3 py-2.5">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold tracking-wider text-olive-700 uppercase">
-                            {SERVICE_LABELS[service]}
-                          </p>
-                          {menu ? (
-                            <p className="truncate text-sm text-steel-900">{menu.meal?.name}</p>
-                          ) : (
-                            <p className="text-sm text-steel-400 italic">Aucun menu</p>
-                          )}
-                        </div>
-                        {menu &&
-                          (editable ? (
-                            <Button
-                              size="sm"
-                              variant={reserved ? 'outline' : 'secondary'}
-                              loading={pending === menu.id}
-                              onClick={() => toggle(menu)}
-                              aria-pressed={reserved}
-                            >
-                              {reserved ? 'Annuler' : 'Réserver'}
-                            </Button>
-                          ) : (
-                            <Badge tone={reserved ? 'olive' : 'steel'}>{reserved ? 'Réservé' : '—'}</Badge>
-                          ))}
-                      </li>
-                    )
-                  })}
-                </ul>
-              </Card>
-            )
-          })}
-        </div>
+        <Card title="Réservations de la semaine">
+          <div className="-mx-2 overflow-x-auto px-2">
+            <table className="w-full min-w-[34rem] text-sm">
+              <thead>
+                <tr className="border-b border-steel-200 text-left text-xs tracking-wider text-steel-600 uppercase">
+                  <th scope="col" className="py-3 pr-3">Jour</th>
+                  {SERVICES.map((service) => (
+                    <th key={service} scope="col" className="px-3 py-3 text-center">
+                      <span title={SERVICE_LABELS[service]}>{SERVICE_SHORT_LABELS[service]}</span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-steel-100">
+                {days.map((day) => {
+                  const editable = isTodayOrFuture(day)
+                  const dayLabel = formatDayLabel(day, { weekday: 'long', day: 'numeric', month: 'long' })
+                  return (
+                    <tr key={day}>
+                      <th scope="row" className="py-2 pr-3 text-left font-medium text-steel-900">
+                        <time dateTime={day}>{dayLabel}</time>
+                      </th>
+                      {SERVICES.map((service) => {
+                        const menu = menuIndex.get(`${day}|${service}`)
+                        const reservation = menu && reservationByMenu.get(menu.id)
+                        const reserved = reservation?.status === 'reserved'
+                        const available = Boolean(menu && editable)
+                        const label = `${SERVICE_LABELS[service]} ${dayLabel}${
+                          !menu ? ' — aucun menu publié' : !editable ? ' — réservation fermée' : ''
+                        }`
+                        return (
+                          <td key={service} className="px-3 py-1 text-center">
+                            {menu ? (
+                              <label className="flex min-h-12 cursor-pointer items-center justify-center rounded-md hover:bg-olive-50 has-[:disabled]:cursor-not-allowed has-[:disabled]:hover:bg-transparent">
+                                <input
+                                  type="checkbox"
+                                  className="size-5 accent-olive-700 disabled:cursor-not-allowed"
+                                  checked={Boolean(reserved)}
+                                  disabled={!available || pending === menu.id}
+                                  aria-label={label}
+                                  onChange={() => toggle(menu)}
+                                />
+                              </label>
+                            ) : (
+                              <span
+                                className="flex min-h-12 items-center justify-center text-steel-400"
+                                aria-label={label}
+                                title="Aucun menu publié"
+                              >
+                                —
+                              </span>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs text-steel-600">Cochez ou décochez un repas pour réserver ou annuler.</p>
+        </Card>
       )}
       {data && data.menus.length === 0 && <EmptyState>Aucun menu publié pour cette semaine.</EmptyState>}
     </>

@@ -6,6 +6,7 @@ import { HEADCOUNT_STATUS_LABELS, SERVICES, SERVICE_LABELS } from '../../lib/con
 import { downloadCSV, toCSV } from '../../lib/csv'
 import { formatDayLabel, toISODate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
+import { formatOrganizationName } from '../../lib/organization'
 import { groupBySection, percent, sortMembers } from '../../lib/stats'
 import { fetchMenus } from '../../services/meals'
 import { fetchCompanyMembers } from '../../services/profiles'
@@ -98,11 +99,11 @@ export default function AduDashboardPage() {
   }
 
   const exportCsv = () => {
-    const headers = ['Régiment', 'Compagnie', 'Section', 'Nom', 'Date', 'Service', 'Repas', 'Réservé', 'Présent']
+    const headers = ['Régiment', 'CIE', 'SECT', 'Nom', 'Date', 'Service', 'Repas', 'Réservé', 'Présent']
     const rows = sortMembers(view.rows, 'section').map((r) => [
-      profile.regiment?.name,
-      profile.company?.name,
-      r.section?.name ?? '',
+      formatOrganizationName(profile.regiment?.name),
+      formatOrganizationName(profile.company?.name),
+      formatOrganizationName(r.section?.name ?? ''),
       r.full_name,
       date,
       SERVICE_LABELS[service],
@@ -120,8 +121,8 @@ export default function AduDashboardPage() {
   return (
     <>
       <PageHeader
-        title={`Compagnie — ${profile.company?.name ?? ''}`}
-        subtitle={profile.regiment?.name}
+        title={`CIE — ${formatOrganizationName(profile.company?.name)}`}
+        subtitle={formatOrganizationName(profile.regiment?.name)}
         actions={
           <div className="grid w-full grid-cols-2 gap-2 sm:w-auto">
             <Input aria-label="Date" type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
@@ -262,7 +263,7 @@ export default function AduDashboardPage() {
                     <tbody className="divide-y divide-steel-100">
                       {view.rows.map((row) => (
                         <tr key={row.id}>
-                          <td className="py-2 pr-4 text-steel-600">{row.section?.name ?? '—'}</td>
+                          <td className="py-2 pr-4 text-steel-600">{formatOrganizationName(row.section?.name ?? '—')}</td>
                           <td className="py-2 pr-4 font-medium">{row.full_name}</td>
                           <td className="py-2 pr-4">
                             {row.hasReserved ? <Badge tone="olive">Réservé</Badge> : <Badge tone="steel">Non réservé</Badge>}

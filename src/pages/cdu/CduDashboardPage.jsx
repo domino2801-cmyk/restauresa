@@ -16,6 +16,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { HEADCOUNT_STATUS_LABELS, SERVICES, SERVICE_LABELS } from '../../lib/constants'
 import { addDays, formatDayLabel, startOfWeek, toISODate, weekDays } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
+import { formatOrganizationName } from '../../lib/organization'
 import { activeReservations, attendanceRate, groupBySection, percent, reservationRate } from '../../lib/stats'
 import { fetchMenus } from '../../services/meals'
 import { fetchCompanyMembers } from '../../services/profiles'
@@ -73,7 +74,7 @@ export default function CduDashboardPage() {
     const sectionRates = groupBySection(data.members, new Set(active.map((r) => r.user_id))).map((s) => {
       const ids = new Set(s.members.map((m) => m.id))
       const count = active.filter((r) => ids.has(r.user_id)).length
-      return { section: s.section, Taux: percent(count, s.total * data.menus.length) }
+      return { section: formatOrganizationName(s.section), Taux: percent(count, s.total * data.menus.length) }
     })
 
     const headcountByMenu = new Map(data.headcounts.map((h) => [h.menu_id, h]))
@@ -122,8 +123,8 @@ export default function CduDashboardPage() {
   return (
     <>
       <PageHeader
-        title={`Supervision — ${profile.company?.name ?? ''}`}
-        subtitle={profile.regiment?.name}
+        title={`Supervision — ${formatOrganizationName(profile.company?.name)}`}
+        subtitle={formatOrganizationName(profile.regiment?.name)}
         actions={<WeekNavigator monday={monday} onChange={setMonday} />}
       />
       <Alert tone="error" className="mb-4">
@@ -158,7 +159,7 @@ export default function CduDashboardPage() {
                   </ResponsiveContainer>
                 </div>
               </Card>
-              <Card title="Taux de réservation par section (%)">
+              <Card title="Taux de réservation par SECT (%)">
                 {kpis.sectionRates.length === 0 ? (
                   <EmptyState>Aucun membre.</EmptyState>
                 ) : (

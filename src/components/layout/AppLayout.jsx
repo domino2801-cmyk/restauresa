@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { ROLE_LABELS, ROLES } from '../../lib/constants'
+import { formatOrganizationName } from '../../lib/organization'
 import { Logo } from './Logo'
 
 /** Liens de navigation disponibles par rôle. */
@@ -29,7 +30,7 @@ const linkClass = ({ isActive }) =>
 export function AppLayout() {
   const { profile, signOut } = useAuth()
   const links = NAV_BY_ROLE[profile.role] ?? NAV_BY_ROLE[ROLES.USER]
-  const unit = [profile.company?.name, profile.section?.name].filter(Boolean).join(' · ')
+  const unit = [profile.company?.name, profile.section?.name].filter(Boolean).map(formatOrganizationName).join(' · ')
 
   return (
     <div className="min-h-screen pb-[env(safe-area-inset-bottom)]">

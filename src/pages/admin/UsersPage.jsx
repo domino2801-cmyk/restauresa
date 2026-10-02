@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useOrganization } from '../../hooks/useOrganization'
 import { ROLE_LABELS } from '../../lib/constants'
 import { errorMessage } from '../../lib/errors'
+import { formatOrganizationName } from '../../lib/organization'
 import { deleteUserAccount, fetchProfiles, updateProfile } from '../../services/profiles'
 
 const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
@@ -111,7 +112,9 @@ export default function UsersPage() {
       if (filter === 'pending' && u.is_validated) return false
       if (filter === 'validated' && !u.is_validated) return false
       if (!term) return true
-      return [u.full_name, u.email, u.company?.name, u.section?.name].some((v) => v?.toLowerCase().includes(term))
+      return [u.full_name, u.email, u.company?.name, u.section?.name]
+        .map((value) => formatOrganizationName(value ?? ''))
+        .some((value) => value.toLowerCase().includes(term))
     })
   }, [users, search, filter])
 
