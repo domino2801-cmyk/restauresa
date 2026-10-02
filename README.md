@@ -88,7 +88,11 @@ avant publication de cette interface. Les droits du client et du CDU ne sont pas
   une consultation hors-ligne des dernières données. Ce cache est purgé à la
   déconnexion (manuelle ou expiration de session) afin de ne pas exposer ces données
   à un autre utilisateur du même appareil.
-- Icônes générées depuis `public/favicon.svg` (`npm run generate-pwa-assets`).
+- Emblème bleu sur fond blanc fourni pour l'application : `public/logo.png`.
+  Les favicons, icônes Android/PWA (64, 192 et 512 px), icône adaptable
+  (*maskable*) et icône Apple (180 px) sont générés depuis cette image avec
+  `npm run generate-pwa-assets`. Le même emblème apparaît dans l'en-tête et
+  sur les écrans de connexion.
 
 ## Structure
 
