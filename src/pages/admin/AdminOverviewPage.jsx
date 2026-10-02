@@ -58,6 +58,7 @@ export default function AdminOverviewPage() {
       pending: data.profiles.length - validated.length,
       weekReservations: active.length,
       cost,
+      unpriced: active.filter((r) => !r.menu?.meal).length,
       perDay: countByDay(days, withMenu).map((d) => ({ ...d, label: formatDayLabel(d.day) })),
       byCompany,
       rate: percent(active.length, validated.length * data.menus.length),
@@ -85,6 +86,7 @@ export default function AdminOverviewPage() {
               <StatCard
                 label="Coût estimé (sem.)"
                 value={stats.cost.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                hint={stats.unpriced ? `Partiel : ${stats.unpriced} repas sans plat publié` : 'Sur la semaine'}
               />
             </div>
             <Card title="Réservations par jour">

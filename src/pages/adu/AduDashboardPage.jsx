@@ -181,7 +181,7 @@ export default function AduDashboardPage() {
               <StatCard
                 label="Taux"
                 value={`${percent(view.reservedCount, data.members.length)} %`}
-                hint={view.menu?.meal?.name ?? 'Aucun menu'}
+                hint={view.menu?.meal?.name ?? 'Plat non publié'}
               />
             </div>
 
@@ -199,7 +199,7 @@ export default function AduDashboardPage() {
                   >
                     <p className="text-xs font-semibold tracking-wider text-olive-700 uppercase">{SERVICE_LABELS[s]}</p>
                     <p className="text-2xl font-bold text-navy-900">{count ?? '—'}</p>
-                    <p className="truncate text-xs text-steel-600">{menu?.meal?.name ?? 'Aucun menu'}</p>
+                    <p className="truncate text-xs text-steel-600">{menu?.meal?.name ?? 'Plat non publié'}</p>
                   </button>
                 ))}
               </div>
@@ -292,7 +292,7 @@ export default function AduDashboardPage() {
                   : `Modifications ADU clôturées depuis le ${formatAduReservationDeadline(date)} (J-2). Le pointage de présence reste disponible.`}
               </Alert>
               {!view.menu ? (
-                <EmptyState>Aucun menu publié pour ce service.</EmptyState>
+                <EmptyState>Service indisponible.</EmptyState>
               ) : view.rows.length === 0 ? (
                 <EmptyState>Aucun militaire ne correspond au filtre.</EmptyState>
               ) : (

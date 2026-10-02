@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatDayLabel, startOfWeek, weekDays } from '../../lib/dates'
+import { fetchMenus } from '../../services/meals'
 import { saveMealSelections } from '../../services/reservations'
 import MyReservationsPage from './MyReservationsPage'
 
@@ -12,7 +13,7 @@ const saturdayLabel = formatDayLabel(days[5], { weekday: 'long', day: 'numeric',
 const sundayLabel = formatDayLabel(days[6], { weekday: 'long', day: 'numeric', month: 'long' })
 const menus = [
   ...days.slice(0, 4).map((day, index) => ({
-    id: `default-dej-${index}`, menu_date: day, service: 'dejeuner', meal_name: 'Menu DEJ',
+    id: `default-dej-${index}`, menu_date: day, service: 'dejeuner', meal_id: null, meal: null,
   })),
   { id: 'pdj', menu_date: menuDate, service: 'petit_dejeuner', meal_name: 'Omelette' },
   { id: 'dej', menu_date: menuDate, service: 'dejeuner', meal_name: 'Poulet rôti' },
@@ -106,12 +107,38 @@ describe('MyReservationsPage', () => {
     expect(screen.getByRole('button', { name: 'Confirmer mes réservations' })).toBeDisabled()
   })
 
-  it('désactive les jours sans menu avec un indicateur accessible', async () => {
+  it('affiche une case désactivée plutôt qu’un tiret si le service est indisponible', async () => {
     await renderReservations()
 
-    const absentMeal = await screen.findByLabelText(`Petit-déjeuner ${mondayLabel} — aucun menu publié`)
-    expect(absentMeal).toHaveTextContent('—')
-    expect(screen.queryByRole('checkbox', { name: `Petit-déjeuner ${mondayLabel}` })).not.toBeInTheDocument()
+    const absentMeal = await screen.findByRole('checkbox', { name: `Petit-déjeuner ${mondayLabel} — service indisponible` })
+    expect(absentMeal).toBeDisabled()
+    expect(absentMeal).not.toBeChecked()
+    expect(screen.queryByText('—')).not.toBeInTheDocument()
+  })
+
+  it('permet tous les services et le week-end sans aucun plat publié', async () => {
+    const withoutDishes = async (start, end) => days
+      .filter((day) => day >= start && day <= end)
+      .flatMap((day) => ['petit_dejeuner', 'dejeuner', 'diner'].map((service) => ({
+        id: `${day}-${service}`, menu_date: day, service, meal_id: null, meal: null,
+      })))
+    fetchMenus.mockImplementationOnce(withoutDishes).mockImplementationOnce(withoutDishes).mockImplementationOnce(withoutDishes)
+    await renderReservations()
+    const weekdayMeals = screen.getAllByRole('checkbox').filter((input) => input.closest('tbody'))
+    expect(weekdayMeals).toHaveLength(15)
+    for (const input of weekdayMeals) expect(input).toBeEnabled()
+    expect(weekdayMeals.filter((input) => input.checked)).toHaveLength(4)
+    fireEvent.click(screen.getByRole('checkbox', { name: `Petit-déjeuner ${mondayLabel}` }))
+    fireEvent.click(screen.getByRole('checkbox', { name: `Dîner ${fridayLabel}` }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Week-end' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: `Déjeuner ${saturdayLabel}` }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer mes réservations' }))
+    await waitFor(() => expect(saveMealSelections).toHaveBeenCalledWith('user-1', expect.arrayContaining([
+      { menuId: `${days[0]}-petit_dejeuner`, reserved: true },
+      { menuId: `${days[4]}-diner`, reserved: true },
+      { menuId: `${days[5]}-dejeuner`, reserved: true },
+    ])))
+    await screen.findByText('Vos réservations ont été enregistrées.')
   })
 
   it('affiche lundi à vendredi par défaut et le week-end uniquement si la case est cochée', async () => {
@@ -225,7 +252,9 @@ describe('MyReservationsPage', () => {
     await renderReservations()
     fireEvent.click(await screen.findByRole('checkbox', { name: `Déjeuner ${mondayLabel}` }))
     fireEvent.click(screen.getByRole('button', { name: 'Semaine suivante' }))
-    await screen.findByText('Aucun menu publié pour cette semaine.')
+    await waitFor(() => expect(screen.getByRole('checkbox', {
+      name: 'Déjeuner lundi 12 octobre — service indisponible',
+    })).toBeDisabled())
     expect(screen.getByRole('button', { name: 'Confirmer mes réservations' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Semaine précédente' }))
     expect(await screen.findByRole('checkbox', { name: `Déjeuner ${mondayLabel}` })).not.toBeChecked()

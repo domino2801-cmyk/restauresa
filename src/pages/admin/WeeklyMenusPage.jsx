@@ -52,7 +52,7 @@ export default function WeeklyMenusPage() {
     <>
       <PageHeader
         title="Menus de la semaine"
-        subtitle="Sélectionnez le repas servi pour chaque service."
+        subtitle="Sélectionnez le plat de chaque service. Les réservations restent possibles sans plat publié."
         actions={<WeekNavigator monday={monday} onChange={setMonday} />}
       />
       <Alert tone="error" className="mb-4">
@@ -73,7 +73,7 @@ export default function WeeklyMenusPage() {
                       key={service}
                       label={SERVICE_LABELS[service]}
                       value={current}
-                      placeholder="— Aucun —"
+                      placeholder="Plat non publié"
                       options={optionsFor(current)}
                       disabled={saving === key}
                       onChange={(e) => change(day, service, e.target.value)}

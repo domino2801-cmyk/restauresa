@@ -83,14 +83,16 @@ export default function CduDashboardPage() {
       .map((menu) => {
         const current = active.filter((r) => r.menu_id === menu.id).length
         const headcount = headcountByMenu.get(menu.id)
-        const price = Number(menu.meal?.unit_price ?? 0)
-        return { menu, current, headcount, cost: (headcount?.reserved_count ?? current) * price }
+        const count = headcount?.reserved_count ?? current
+        const cost = menu.meal ? count * Number(menu.meal.unit_price) : null
+        return { menu, current, headcount, cost, unpriced: cost === null ? count : 0 }
       })
 
     return {
       reservationRate: reservationRate(data.reservations, data.members.length, data.menus.length),
       attendanceRate: attendanceRate(data.reservations),
-      totalCost: review.reduce((sum, r) => sum + r.cost, 0),
+      totalCost: review.reduce((sum, r) => sum + (r.cost ?? 0), 0),
+      unpriced: review.reduce((sum, r) => sum + r.unpriced, 0),
       pending: data.headcounts.filter((h) => h.status === 'submitted').length,
       perDay,
       sectionRates,
@@ -139,7 +141,7 @@ export default function CduDashboardPage() {
               <StatCard label="Effectif" value={data.members.length} />
               <StatCard label="Taux de réservation" value={`${kpis.reservationRate} %`} tone="olive" hint="Sur la semaine" />
               <StatCard label="Taux de présence" value={`${kpis.attendanceRate} %`} tone="khaki" hint="Repas pointés" />
-              <StatCard label="Coût estimé" value={euro(kpis.totalCost)} hint="Sur la semaine" />
+              <StatCard label="Coût estimé" value={euro(kpis.totalCost)} hint={kpis.unpriced ? `Partiel : ${kpis.unpriced} repas sans plat publié` : 'Sur la semaine'} />
               <StatCard label="À approuver" value={kpis.pending} tone={kpis.pending ? 'red' : 'olive'} />
             </div>
 
@@ -180,7 +182,7 @@ export default function CduDashboardPage() {
 
             <Card title="Revue des effectifs">
               {kpis.review.length === 0 ? (
-                <EmptyState>Aucun menu publié pour cette semaine.</EmptyState>
+                <EmptyState>Aucun service disponible pour cette semaine.</EmptyState>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
@@ -201,12 +203,12 @@ export default function CduDashboardPage() {
                         <tr key={menu.id}>
                           <td className="py-2 pr-4 whitespace-nowrap">{formatDayLabel(menu.menu_date)}</td>
                           <td className="py-2 pr-4">{SERVICE_LABELS[menu.service]}</td>
-                          <td className="py-2 pr-4">{menu.meal?.name}</td>
+                          <td className="py-2 pr-4">{menu.meal?.name ?? 'Plat non publié'}</td>
                           <td className="py-2 pr-4 text-right">{current}</td>
                           <td className="py-2 pr-4 text-right">
                             {headcount ? `${headcount.reserved_count} / ${headcount.total_members}` : '—'}
                           </td>
-                          <td className="py-2 pr-4 text-right whitespace-nowrap">{euro(cost)}</td>
+                          <td className="py-2 pr-4 text-right whitespace-nowrap">{cost === null ? 'Non renseigné' : euro(cost)}</td>
                           <td className="py-2 pr-4">
                             {headcount ? (
                               <Badge tone={STATUS_TONES[headcount.status]}>{HEADCOUNT_STATUS_LABELS[headcount.status]}</Badge>

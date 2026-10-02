@@ -35,12 +35,27 @@ Appliquer cette migration Supabase avant publication des textes de l'interface.
 | **CDU** – Commandant de compagnie (`cdu`) | `/cdu` | KPIs (taux de réservation, **taux de présence**, coût estimé, effectifs à approuver), graphiques par jour et par section, **revue des effectifs** (approbation / rejet motivé). |
 | **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas du lundi au vendredi, avec une case **« Week-end »** pour afficher samedi et dimanche. Masquer le week-end conserve les réservations existantes et leur inclusion dans le total hebdomadaire. Accessible aussi aux autres rôles via « Mes repas ». |
 
-Les **DEJ du lundi au jeudi** sont précochés pour les menus disponibles avant la
+Les **DEJ du lundi au jeudi** sont précochés avant la
 clôture, sauf si un choix a déjà été enregistré (notamment une annulation).
 Ces présélections et toutes les modifications de cases restent en brouillon jusqu'au
 clic sur **« Confirmer mes réservations »**. Les choix sont enregistrés ensemble ;
 un DEJ décoché explicitement reste décoché après rechargement. Le total hebdomadaire
 ne compte que les réservations enregistrées, pas les présélections.
+
+La grille « Mes repas » s'adapte aux petits écrans sans défilement horizontal :
+les colonnes PDJ / DEJ / DIN restent visibles, les dates peuvent revenir à la ligne
+et le bouton de confirmation occupe la largeur disponible sur mobile.
+
+Les réservations ne dépendent plus de la publication des plats : chaque date
+dispose des services **PDJ / DEJ / DIN**, même avec un plat non renseigné.
+La migration `20261002030000_reservations_without_published_meals.sql` rend
+`menus.meal_id` facultatif et ajoute `ensure_meal_services`, réservé aux comptes
+activés, pour créer les services manquants de la période consultée (31 jours
+maximum par appel, sans modifier les plats existants). Les cases restent soumises
+aux échéances client et ADU. Publier, remplacer ou retirer un plat conserve
+l'identifiant du service et toutes ses réservations. Un plat absent n'a pas de
+coût connu et n'entre donc pas dans le coût estimé tant qu'il n'est pas renseigné.
+Appliquer la migration avant de publier le frontend correspondant.
 
 Chaque semaine de repas (lundi à dimanche) est clôturée **le jeudi précédent à
 14 h, heure de Paris**, changements d'heure été/hiver inclus. À partir de cet

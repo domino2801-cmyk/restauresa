@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { WeekNavigator } from '../../components/WeekNavigator'
-import { Alert, Button, Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
+import { Alert, Button, Card, PageHeader, Spinner } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
 import { useAuth } from '../../hooks/useAuth'
 import { SERVICES, SERVICE_LABELS, SERVICE_SHORT_LABELS } from '../../lib/constants'
@@ -160,13 +160,19 @@ export default function MyReservationsPage() {
             />
             Week-end
           </label>
-          <div className="-mx-2 overflow-x-auto px-2">
-            <table className="w-full min-w-[34rem] text-sm">
+          <div>
+            <table className="w-full table-fixed text-sm">
+              <colgroup>
+                <col />
+                {SERVICES.map((service) => (
+                  <col key={service} className="w-11 sm:w-20" />
+                ))}
+              </colgroup>
               <thead>
                 <tr className="border-b border-steel-200 text-left text-xs tracking-wider text-steel-600 uppercase">
                   <th scope="col" className="py-3 pr-3">Jour</th>
                   {SERVICES.map((service) => (
-                    <th key={service} scope="col" className="px-3 py-3 text-center">
+                    <th key={service} scope="col" className="px-0 py-3 text-center sm:px-3">
                       <span title={SERVICE_LABELS[service]}>{SERVICE_SHORT_LABELS[service]}</span>
                     </th>
                   ))}
@@ -178,37 +184,27 @@ export default function MyReservationsPage() {
                   const dayLabel = formatDayLabel(day, { weekday: 'long', day: 'numeric', month: 'long' })
                   return (
                     <tr key={day}>
-                      <th scope="row" className="py-2 pr-3 text-left font-medium text-steel-900">
+                      <th scope="row" className="py-2 pr-2 text-left font-medium break-words text-steel-900 sm:pr-3">
                         <time dateTime={day}>{dayLabel}</time>
                       </th>
                       {SERVICES.map((service) => {
                         const menu = menuIndex.get(`${day}|${service}`)
                         const available = Boolean(menu && editable)
                         const label = `${SERVICE_LABELS[service]} ${dayLabel}${
-                          !menu ? ' — aucun menu publié' : !editable ? ' — réservation fermée' : ''
+                          !menu ? ' — service indisponible' : !editable ? ' — réservation fermée' : ''
                         }`
                         return (
-                          <td key={service} className="px-3 py-1 text-center">
-                            {menu ? (
+                          <td key={service} className="px-0 py-1 text-center sm:px-3">
                               <label className="flex min-h-12 cursor-pointer items-center justify-center rounded-md hover:bg-olive-50 has-[:disabled]:cursor-not-allowed has-[:disabled]:hover:bg-transparent">
                                 <input
                                   type="checkbox"
                                   className="size-5 accent-olive-700 disabled:cursor-not-allowed"
-                                  checked={isSelected(menu)}
+                                  checked={menu ? isSelected(menu) : false}
                                   disabled={!available || pending || !ready}
                                   aria-label={label}
                                   onChange={() => toggle(menu)}
                                 />
                               </label>
-                            ) : (
-                              <span
-                                className="flex min-h-12 items-center justify-center text-steel-400"
-                                aria-label={label}
-                                title="Aucun menu publié"
-                              >
-                                —
-                              </span>
-                            )}
                           </td>
                         )
                       })}
@@ -219,14 +215,14 @@ export default function MyReservationsPage() {
             </table>
           </div>
           <p className="mt-3 text-xs text-steel-600">
-            Avant la clôture, les DEJ du lundi au jeudi sont précochés lorsqu’un menu est disponible.
+            Avant la clôture, les DEJ du lundi au jeudi sont précochés, même si les plats ne sont pas encore publiés.
             Cochez ou décochez vos repas, puis confirmez pour enregistrer vos réservations ou annulations.
           </p>
           <p className="mt-1 text-xs text-steel-600">
             Cochez « Week-end » pour afficher samedi et dimanche. Masquer ces jours ne supprime pas leurs réservations.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Button loading={pending} disabled={!ready || changes.length === 0} onClick={confirm}>
+            <Button className="w-full whitespace-normal sm:w-auto" loading={pending} disabled={!ready || changes.length === 0} onClick={confirm}>
               Confirmer mes réservations
             </Button>
             {changes.length > 0 && (
@@ -235,7 +231,6 @@ export default function MyReservationsPage() {
           </div>
         </Card>
       )}
-      {ready && data.menus.length === 0 && <EmptyState>Aucun menu publié pour cette semaine.</EmptyState>}
     </>
   )
 }

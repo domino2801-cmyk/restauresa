@@ -36,8 +36,13 @@ export async function deleteMeal(id) {
   }
 }
 
-/** Menus entre deux dates ISO incluses, avec le repas associé. */
+/** Services entre deux dates ISO incluses, avec un plat publié facultatif. */
 export async function fetchMenus(from, to) {
+  const { error: servicesError } = await supabase.rpc('ensure_meal_services', {
+    from_date: from,
+    to_date: to,
+  })
+  if (servicesError) throw servicesError
   const { data, error } = await supabase
     .from('menus')
     .select('id, menu_date, service, meal_id, meal:meals(id, name, description, category, unit_price)')
@@ -48,15 +53,10 @@ export async function fetchMenus(from, to) {
   return data
 }
 
-/** Définit (ou retire si `mealId` est vide) le repas d'un service pour une date (admin). */
+/** Définit ou retire le plat sans supprimer le service ni ses réservations (admin). */
 export async function setMenu(menuDate, service, mealId) {
-  if (!mealId) {
-    const { error } = await supabase.from('menus').delete().eq('menu_date', menuDate).eq('service', service)
-    if (error) throw error
-    return
-  }
   const { error } = await supabase
     .from('menus')
-    .upsert({ menu_date: menuDate, service, meal_id: mealId }, { onConflict: 'menu_date,service' })
+    .upsert({ menu_date: menuDate, service, meal_id: mealId || null }, { onConflict: 'menu_date,service' })
   if (error) throw error
 }
