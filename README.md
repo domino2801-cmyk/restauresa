@@ -221,7 +221,28 @@ Connectez-vous ensuite en administrateur, ouvrez l'onglet **Email de test**, sai
 destinataire (ou laissez vide) et cliquez sur **Envoyer l'email de test**. Les erreurs
 (clé manquante, domaine non vérifié, accès refusé…) sont affichées dans la page.
 
-**b) Emails d'authentification (code OTP, réinitialisation) via le SMTP Resend.** Dans
+**b) Rappel automatique chaque mercredi.** Le workflow GitHub Actions déclenche l'Edge
+Function `weekly-reservation-reminder` à 09 h, heure de Paris. Il envoie un email
+individuel aux comptes dont l'adresse est confirmée et le profil validé, avec le rappel
+de réserver les repas de la semaine suivante avant le jeudi à 14 h et un lien direct
+vers la page de connexion.
+
+Configurez les secrets côté Supabase (la clé Resend et un expéditeur issu d'un domaine
+vérifié sont obligatoires) :
+
+```bash
+npx supabase secrets set RESEND_API_KEY=re_xxx RESEND_FROM="RestauResa <noreply@votre-domaine.fr>" WEEKLY_REMINDER_SECRET="secret-long-aleatoire"
+npx supabase functions deploy weekly-reservation-reminder
+```
+
+Dans **GitHub > Settings > Secrets and variables > Actions**, ajoutez le secret
+`WEEKLY_REMINDER_SECRET` avec la même valeur que côté Supabase. Le workflow réutilise
+les variables de dépôt `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` déjà nécessaires
+au déploiement du site et tient compte des changements d'heure en Europe/Paris.
+`RESEND_FROM` doit être un expéditeur vérifié dans Resend ; l'adresse de démonstration
+`onboarding@resend.dev` ne convient pas pour envoyer à tous les utilisateurs.
+
+**c) Emails d'authentification (code OTP, réinitialisation) via le SMTP Resend.** Dans
 *Authentication > Emails > SMTP Settings* du projet Supabase, activez le SMTP
 personnalisé avec : hôte `smtp.resend.com`, port `465`, utilisateur `resend`, mot de passe
 = clé API Resend, et un expéditeur sur un domaine vérifié. En local, la section

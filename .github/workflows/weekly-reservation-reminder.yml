@@ -1,0 +1,32 @@
+name: Weekly reservation reminder
+
+on:
+  # 09:00 in Paris is 07:00 UTC in summer and 08:00 UTC in winter.
+  # The Edge Function sends only during the matching Paris-local hour.
+  schedule:
+    - cron: '0 7 * * 3'
+    - cron: '0 8 * * 3'
+
+concurrency:
+  group: weekly-reservation-reminder
+  cancel-in-progress: false
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send weekly reservation reminder
+        env:
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          WEEKLY_REMINDER_SECRET: ${{ secrets.WEEKLY_REMINDER_SECRET }}
+        run: |
+          test -n "$SUPABASE_URL" || (echo "Set the VITE_SUPABASE_URL repository variable." && exit 1)
+          test -n "$SUPABASE_ANON_KEY" || (echo "Set the VITE_SUPABASE_ANON_KEY repository variable." && exit 1)
+          test -n "$WEEKLY_REMINDER_SECRET" || (echo "Set the WEEKLY_REMINDER_SECRET repository secret." && exit 1)
+          curl --fail-with-body --silent --show-error \
+            --request POST "$SUPABASE_URL/functions/v1/weekly-reservation-reminder" \
+            --header "apikey: $SUPABASE_ANON_KEY" \
+            --header "Content-Type: application/json" \
+            --header "x-weekly-reminder-secret: $WEEKLY_REMINDER_SECRET" \
+            --data '{}'

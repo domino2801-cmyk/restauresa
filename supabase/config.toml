@@ -37,3 +37,7 @@ verify_jwt = false
 # Email de test via Resend : JWT requis (accès vérifié côté fonction : admin validé).
 [functions.send-test-email]
 verify_jwt = true
+
+# Rappel hebdomadaire déclenché par GitHub Actions ; authentification par secret dédié.
+[functions.weekly-reservation-reminder]
+verify_jwt = false
