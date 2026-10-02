@@ -137,12 +137,12 @@ Deno.serve(async (request) => {
           subject: 'RestauResa — Réservez vos repas pour la semaine prochaine',
           text:
             `Bonjour ${recipient.fullName},\n\n` +
-            'Veuillez réserver vos repas pour la semaine prochaine avant le jeudi à 14 h.\n\n' +
+            'Veuillez réserver vos repas pour la semaine prochaine avant le jeudi à 14 h (heure de Paris).\n\n' +
             `Connectez-vous à RestauResa : ${LOGIN_URL}\n\n` +
             'L’équipe RestauResa',
           html:
             `<p>Bonjour ${safeName},</p>` +
-            '<p>Veuillez réserver vos repas pour la semaine prochaine avant le <strong>jeudi à 14 h</strong>.</p>' +
+            '<p>Veuillez réserver vos repas pour la semaine prochaine avant le <strong>jeudi à 14 h (heure de Paris)</strong>.</p>' +
             `<p><a href="${LOGIN_URL}">Se connecter à RestauResa</a></p>` +
             '<p>L’équipe RestauResa</p>',
         }),
