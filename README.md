@@ -101,6 +101,11 @@ La caméra est arrêtée après le scan, à la sortie de page ou en arrière-pla
 Le code permanent peut être photographié et partagé : ce dispositif ne garantit
 pas la présence physique. Aucun horaire de service supplémentaire n'est imposé.
 Appliquer `20261002040000_qr_attendance.sql` avant publication du frontend.
+Le bouton administrateur **Générer un nouveau QR code** demande confirmation,
+remplace le code côté serveur et invalide immédiatement l'ancien. Les réservations
+et passages déjà enregistrés sont conservés. Télécharger et remplacer le QR affiché
+au mess après renouvellement. Seul un administrateur activé peut le renouveler.
+Appliquer aussi `20261002050000_rotate_establishment_qr.sql` pour ce bouton.
 
 ### PWA
 

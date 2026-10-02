@@ -17,6 +17,7 @@ const migrations = [
   '20261002020000_auto_validate_confirmed_accounts.sql',
   '20261002030000_reservations_without_published_meals.sql',
   '20261002040000_qr_attendance.sql',
+  '20261002050000_rotate_establishment_qr.sql',
 ]
 
 beforeAll(async () => {
@@ -134,6 +135,39 @@ describe('réservation sans plat publié', () => {
       await db.query("update public.profiles set role='admin' where id=$1", [user])
       const { rows: qr } = await asClient(() => db.query('select public.get_establishment_qr() as content'))
       expect(qr[0].content).toBe(content)
+    })
+
+    it('renouvelle le code, refuse l’ancien et conserve les passages', async () => {
+      const previous = await seedToday()
+      await asClient(() => checkin(previous))
+      const { rows: before } = await db.query('select * from public.reservation_checkins')
+      await db.query("update public.profiles set role='admin' where id=$1", [user])
+      const { rows } = await asClient(() => db.query('select public.rotate_establishment_qr() as content'))
+      const next = rows[0].content
+      expect(next).not.toBe(previous)
+      const { rows: current } = await asClient(() => db.query('select public.get_establishment_qr() as content'))
+      expect(current[0].content).toBe(next)
+      await db.query("update public.profiles set role='user' where id=$1", [user])
+      await asClient(() => expect(checkin(previous)).rejects.toThrow(/invalide/))
+      await asClient(() => expect(checkin(next)).rejects.toThrow(/déjà validé/))
+      const { rows: after } = await db.query('select * from public.reservation_checkins')
+      expect(after).toEqual(before)
+      await db.exec('delete from public.reservation_checkins')
+      await db.exec('update public.reservations set attended=null')
+      await asClient(() => checkin(next))
+      const { rows: attended } = await db.query('select attended from public.reservations')
+      expect(attended[0].attended).toBe(true)
+    })
+
+    it('réserve le renouvellement aux administrateurs activés', async () => {
+      for (const role of ['user', 'adu', 'cdu']) {
+        await db.query('update public.profiles set role=$1 where id=$2', [role, user])
+        await asClient(() => expect(db.query('select public.rotate_establishment_qr()')).rejects.toThrow(/administrateurs/))
+      }
+      await db.query("update public.profiles set role='admin',is_validated=false where id=$1", [user])
+      await asClient(() => expect(db.query('select public.rotate_establishment_qr()')).rejects.toThrow(/administrateurs/))
+      const { rows } = await db.query("select has_function_privilege('anon','public.rotate_establishment_qr()','EXECUTE') as allowed")
+      expect(rows[0].allowed).toBe(false)
     })
 
     it('conserve le pointage manuel ADU après la migration', async () => {
