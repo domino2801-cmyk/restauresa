@@ -57,7 +57,7 @@ export default function RegisterPage() {
   return (
     <AuthLayout
       title="Création de compte"
-      subtitle="Un code de validation vous sera envoyé par email."
+      subtitle="Un code vous sera envoyé par email. Sa confirmation activera automatiquement votre compte."
       footer={
         <>
           Déjà inscrit ?{' '}

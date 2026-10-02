@@ -15,7 +15,16 @@ construite avec **React + Vite + Tailwind CSS** et intégrée à **Supabase**
 | **Connexion** (`/login`) | **Nom ou email** + mot de passe, bouton **« Mot de passe oublié ? »**. |
 | **Mot de passe oublié** (`/forgot-password`) | Envoi d'un lien de réinitialisation par email. |
 | **Nouveau mot de passe** (`/reset-password`) | Page de destination du lien de réinitialisation. |
-| **Compte en attente** (`/pending`) | Affichée tant qu'un administrateur n'a pas validé le compte. |
+| **Accès indisponible** (`/pending`) | Page de vérification si l'activation n'est pas effective ou a été retirée. |
+
+Les comptes sont **activés automatiquement après confirmation de l'email par OTP**,
+sans intervention administrateur. La migration
+`20261002020000_auto_validate_confirmed_accounts.sql` active également les comptes
+existants non validés dont l'email est confirmé. Un email non confirmé ne donne
+pas d'accès. Le rôle initial reste **Militaire** : les rôles ADU, CDU et administrateur
+restent attribués uniquement par un administrateur. Les mises à jour ordinaires
+du profil ou les reconnexions ne réactivent pas un compte désactivé après cette migration.
+Appliquer cette migration Supabase avant publication des textes de l'interface.
 
 ### Interfaces par rôle (table `profiles`)
 

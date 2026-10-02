@@ -73,6 +73,9 @@ export default function VerifyOtpPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <Alert tone="error">{error}</Alert>
         <Alert tone="success">{info}</Alert>
+        <p className="text-sm text-steel-600">
+          Après confirmation du code, votre compte sera activé automatiquement, sans validation administrateur.
+        </p>
         <OtpInput value={code} onChange={setCode} disabled={submitting} />
         <Button type="submit" size="lg" className="w-full" loading={submitting} disabled={code.length !== OTP_LENGTH}>
           Valider l'inscription

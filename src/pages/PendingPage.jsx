@@ -3,7 +3,7 @@ import { AuthLayout } from '../components/layout/AuthLayout'
 import { Alert, Button, Spinner } from '../components/ui'
 import { useAuth } from '../hooks/useAuth'
 
-/** Compte confirmé mais pas encore validé par un administrateur. */
+/** Accès indisponible si l'activation n'est pas effective ou a été retirée. */
 export default function PendingPage() {
   const { session, profile, loading, refreshProfile, signOut } = useAuth()
 
@@ -12,11 +12,12 @@ export default function PendingPage() {
   if (profile?.is_validated) return <Navigate to="/" replace />
 
   return (
-    <AuthLayout title="Compte en attente" subtitle={profile?.full_name}>
+    <AuthLayout title="Accès au compte indisponible" subtitle={profile?.full_name}>
       <div className="space-y-4">
         <Alert tone="info">
-          Votre adresse email est confirmée. Votre compte doit maintenant être validé par un administrateur
-          avant de pouvoir réserver vos repas.
+          Votre compte est activé automatiquement après confirmation de votre adresse email.
+          Cliquez sur « Vérifier à nouveau » pour actualiser votre accès.
+          Si l’accès reste indisponible, contactez un administrateur.
         </Alert>
         <Button className="w-full" onClick={refreshProfile}>
           Vérifier à nouveau
