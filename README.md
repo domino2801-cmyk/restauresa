@@ -30,7 +30,7 @@ Appliquer cette migration Supabase avant publication des textes de l'interface.
 
 | Rôle | Accueil | Contenu |
 | --- | --- | --- |
-| **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section, suppression du compte via la fonction `admin_delete_user`) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine** ; **email de test** (vérification de l'envoi via Supabase + Resend). |
+| **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section, suppression du compte via la fonction `admin_delete_user`) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine limités au déjeuner**. |
 | **ADU** – Adjudant de compagnie (`adu`) | `/adu` | Qui a réservé dans sa compagnie (par date et service), **triable par section / nom / statut**, filtre réservés / non réservés, **réservation / annulation pour tous les personnels de sa CIE jusqu'à J-2 à 14 h**, synthèse par section, pointage de présence, **export CSV** et **validation de l'effectif** transmis aux cuisines. |
 | **CDU** – Commandant de compagnie (`cdu`) | `/cdu` | KPIs (taux de réservation, **taux de présence**, coût estimé, effectifs à approuver), graphiques par jour et par section, **revue des effectifs** (approbation / rejet motivé). |
 | **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas du lundi au vendredi, avec une case **« Week-end »** pour afficher samedi et dimanche. Masquer le week-end conserve les réservations existantes et leur inclusion dans le total hebdomadaire. Accessible aussi aux autres rôles via « Mes repas ». |
@@ -52,6 +52,9 @@ et le bouton de confirmation occupe la largeur disponible sur mobile.
 
 Les réservations ne dépendent plus de la publication des plats : chaque date
 dispose des services **PDJ / DEJ / DIN**, même avec un plat non renseigné.
+L'administration des menus affiche uniquement le déjeuner pour chaque jour.
+Les plats PDJ/DIN déjà renseignés et les réservations des trois services restent
+conservés ; aucun menu ni aucune réservation n'est supprimé par ce changement.
 La migration `20261002030000_reservations_without_published_meals.sql` rend
 `menus.meal_id` facultatif et ajoute `ensure_meal_services`, réservé aux comptes
 activés, pour créer les services manquants de la période consultée (31 jours
@@ -256,8 +259,9 @@ l'interface Administrateur (onglet *Utilisateurs*).
 
 L'intégration [Resend](https://resend.com) se fait à deux niveaux :
 
-**a) Email de test depuis l'application.** L'onglet *Administration > Email de test*
-(`/admin/email`) appelle l'Edge Function `send-test-email`, qui vérifie que l'appelant est
+**a) Fonction technique d'email de test.** L'onglet et la page `/admin/email`
+ont été retirés de l'application. L'Edge Function `send-test-email` reste disponible
+pour les vérifications techniques ; elle vérifie que l'appelant est
 un administrateur validé puis envoie l'email via l'API Resend. La clé Resend reste côté
 serveur (secret de la fonction) et n'est jamais incluse dans le build.
 
@@ -265,7 +269,7 @@ serveur (secret de la fonction) et n'est jamais incluse dans le build.
 | --- | --- | --- |
 | `RESEND_API_KEY` | oui | Clé API Resend (*API Keys* dans le tableau de bord Resend). |
 | `RESEND_FROM` | non | Expéditeur, ex. `RestauResa <noreply@votre-domaine.fr>` (domaine vérifié dans Resend). Défaut : `RestauResa <onboarding@resend.dev>`, qui ne peut écrire qu'à l'adresse du compte Resend. |
-| `RESEND_TEST_RECIPIENT` | non | Destinataire par défaut si le champ est laissé vide. Défaut : l'email de l'administrateur connecté. |
+| `RESEND_TEST_RECIPIENT` | non | Destinataire par défaut si aucun destinataire n'est fourni. Défaut : l'email de l'administrateur connecté. |
 
 En production :
 
@@ -282,9 +286,8 @@ npx supabase start
 npx supabase functions serve --env-file supabase/functions/.env
 ```
 
-Connectez-vous ensuite en administrateur, ouvrez l'onglet **Email de test**, saisissez un
-destinataire (ou laissez vide) et cliquez sur **Envoyer l'email de test**. Les erreurs
-(clé manquante, domaine non vérifié, accès refusé…) sont affichées dans la page.
+La fonction peut être appelée avec un jeton d'administrateur validé et un corps
+JSON `{ "to": "vous@exemple.fr" }` (ou `{}` pour le destinataire par défaut).
 
 **b) Rappel automatique chaque mercredi.** Le workflow GitHub Actions déclenche l'Edge
 Function `weekly-reservation-reminder` à 09 h, heure de Paris. Il envoie un email

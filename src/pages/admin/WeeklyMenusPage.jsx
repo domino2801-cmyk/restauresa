@@ -2,12 +2,11 @@ import { useCallback, useMemo, useState } from 'react'
 import { WeekNavigator } from '../../components/WeekNavigator'
 import { Alert, Card, PageHeader, Select, Spinner } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
-import { SERVICES, SERVICE_LABELS } from '../../lib/constants'
 import { addDays, formatDayLabel, startOfWeek, toISODate, weekDays } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { fetchMeals, fetchMenus, setMenu } from '../../services/meals'
 
-/** Planification des menus de la semaine (un repas par service et par jour). */
+/** Planification des plats du déjeuner pour la semaine. */
 export default function WeeklyMenusPage() {
   const [monday, setMonday] = useState(() => startOfWeek(new Date()))
   const [error, setError] = useState(null)
@@ -34,12 +33,11 @@ export default function WeeklyMenusPage() {
       .filter((meal) => meal.is_active || meal.id === current)
       .map((meal) => ({ value: meal.id, label: meal.name }))
 
-  const change = async (day, service, mealId) => {
-    const key = `${day}|${service}`
-    setSaving(key)
+  const change = async (day, mealId) => {
+    setSaving(day)
     setError(null)
     try {
-      await setMenu(day, service, mealId)
+      await setMenu(day, 'dejeuner', mealId)
       await reload()
     } catch (err) {
       setError(errorMessage(err))
@@ -52,7 +50,7 @@ export default function WeeklyMenusPage() {
     <>
       <PageHeader
         title="Menus de la semaine"
-        subtitle="Sélectionnez le plat de chaque service. Les réservations restent possibles sans plat publié."
+        subtitle="Sélectionnez uniquement le plat du déjeuner. Les réservations PDJ / DEJ / DIN restent possibles sans plat publié."
         actions={<WeekNavigator monday={monday} onChange={setMonday} />}
       />
       <Alert tone="error" className="mb-4">
@@ -65,21 +63,14 @@ export default function WeeklyMenusPage() {
           {days.map((day) => (
             <Card key={day} title={formatDayLabel(day, { weekday: 'long', day: 'numeric', month: 'short' })}>
               <div className="space-y-3">
-                {SERVICES.map((service) => {
-                  const key = `${day}|${service}`
-                  const current = menuIndex.get(key)?.meal_id ?? ''
-                  return (
-                    <Select
-                      key={service}
-                      label={SERVICE_LABELS[service]}
-                      value={current}
-                      placeholder="Plat non publié"
-                      options={optionsFor(current)}
-                      disabled={saving === key}
-                      onChange={(e) => change(day, service, e.target.value)}
-                    />
-                  )
-                })}
+                <Select
+                  label="Déjeuner"
+                  value={menuIndex.get(`${day}|dejeuner`)?.meal_id ?? ''}
+                  placeholder="Plat non publié"
+                  options={optionsFor(menuIndex.get(`${day}|dejeuner`)?.meal_id)}
+                  disabled={saving === day}
+                  onChange={(e) => change(day, e.target.value)}
+                />
               </div>
             </Card>
           ))}

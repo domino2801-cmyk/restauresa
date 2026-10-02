@@ -6,7 +6,6 @@ const TABS = [
   { to: '/admin/organization', label: 'Organisation' },
   { to: '/admin/meals', label: 'Catalogue' },
   { to: '/admin/menus', label: 'Menus de la semaine' },
-  { to: '/admin/email', label: 'Email de test' },
 ]
 
 /** Interface Administrateur : sous-navigation par onglets. */
