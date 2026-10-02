@@ -24,7 +24,24 @@ construite avec **React + Vite + Tailwind CSS** et intégrée à **Supabase**
 | **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section, suppression du compte via la fonction `admin_delete_user`) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine** ; **email de test** (vérification de l'envoi via Supabase + Resend). |
 | **ADU** – Adjudant de compagnie (`adu`) | `/adu` | Qui a réservé dans sa compagnie (par date et service), **triable par section / nom / statut**, filtre réservés / non réservés, synthèse par section, pointage de présence, **export CSV** et **validation de l'effectif** transmis aux cuisines. |
 | **CDU** – Commandant de compagnie (`cdu`) | `/cdu` | KPIs (taux de réservation, **taux de présence**, coût estimé, effectifs à approuver), graphiques par jour et par section, **revue des effectifs** (approbation / rejet motivé). |
-| **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas de la semaine. Accessible aussi aux autres rôles via « Mes repas ». |
+| **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas du lundi au vendredi, avec une case **« Week-end »** pour afficher samedi et dimanche. Masquer le week-end conserve les réservations existantes et leur inclusion dans le total hebdomadaire. Accessible aussi aux autres rôles via « Mes repas ». |
+
+Les **DEJ du lundi au jeudi** sont précochés pour les menus disponibles avant la
+clôture, sauf si un choix a déjà été enregistré (notamment une annulation).
+Ces présélections et toutes les modifications de cases restent en brouillon jusqu'au
+clic sur **« Confirmer mes réservations »**. Les choix sont enregistrés ensemble ;
+un DEJ décoché explicitement reste décoché après rechargement. Le total hebdomadaire
+ne compte que les réservations enregistrées, pas les présélections.
+
+Chaque semaine de repas (lundi à dimanche) est clôturée **le jeudi précédent à
+14 h, heure de Paris**, changements d'heure été/hiver inclus. À partir de cet
+instant, le client ne peut plus réserver, modifier ou annuler ; les brouillons
+non confirmés ne sont pas enregistrés. La consultation reste possible, y compris
+le week-end. L'interface affiche l'échéance et se verrouille même si elle reste ouverte.
+La migration `20261002000000_reservation_deadline.sql` applique aussi la règle
+aux insertions, mises à jour et upserts Supabase. Elle doit être appliquée avec
+`npx supabase db push` avant la publication du frontend. Les droits de correction
+de l'administrateur et de pointage de présence de l'ADU restent inchangés.
 
 ### PWA
 
@@ -86,6 +103,9 @@ npm run preview    # sert le build (test de l'installation PWA)
 npm run lint       # oxlint
 npm test           # tests unitaires (Vitest + Testing Library)
 ```
+
+Les tests de clôture exécutent aussi la migration dans un PostgreSQL en mémoire
+(PGlite, dépendance de développement), sans accès au projet Supabase de production.
 
 ## Déploiement en production (GitHub Pages + Supabase)
 

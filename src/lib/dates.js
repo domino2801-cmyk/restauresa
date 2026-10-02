@@ -45,3 +45,34 @@ export function formatDayLabel(iso, options = { weekday: 'short', day: 'numeric'
 export function isTodayOrFuture(iso, today = new Date()) {
   return iso >= toISODate(today)
 }
+
+const parisDateTime = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Paris',
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+  hourCycle: 'h23',
+})
+
+/** Jeudi à 14 h, heure de Paris, précédant la semaine du repas. */
+export function reservationDeadline(menuDate) {
+  const thursday = addDays(startOfWeek(fromISODate(menuDate)), -4)
+  const wallTime = Date.UTC(thursday.getFullYear(), thursday.getMonth(), thursday.getDate(), 14)
+  const parts = Object.fromEntries(
+    parisDateTime.formatToParts(new Date(wallTime)).map(({ type, value }) => [type, value]),
+  )
+  const parisTime = Date.UTC(
+    Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    Number(parts.hour), Number(parts.minute), Number(parts.second),
+  )
+  return new Date(wallTime - (parisTime - wallTime))
+}
+
+export function isReservationOpen(menuDate, now = new Date()) {
+  return now.getTime() < reservationDeadline(menuDate).getTime()
+}
+
+export function formatReservationDeadline(menuDate) {
+  return reservationDeadline(menuDate).toLocaleDateString('fr-FR', {
+    timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  }) + ' à 14 h (heure de Paris)'
+}

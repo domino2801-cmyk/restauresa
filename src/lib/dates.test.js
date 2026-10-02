@@ -1,4 +1,4 @@
-import { addDays, formatDayLabel, fromISODate, isTodayOrFuture, startOfWeek, toISODate, weekDays } from './dates'
+import { addDays, formatDayLabel, formatReservationDeadline, fromISODate, isReservationOpen, isTodayOrFuture, reservationDeadline, startOfWeek, toISODate, weekDays } from './dates'
 
 describe('dates', () => {
   it('formate et parse les dates ISO locales', () => {
@@ -32,5 +32,28 @@ describe('dates', () => {
 
   it('produit un libellé français', () => {
     expect(formatDayLabel('2026-10-01', { weekday: 'long' })).toBe('jeudi')
+  })
+
+  it.each([
+    ['2026-10-05', '2026-10-01T12:00:00.000Z'],
+    ['2026-10-11', '2026-10-01T12:00:00.000Z'],
+    ['2026-11-02', '2026-10-29T13:00:00.000Z'],
+    ['2026-03-30', '2026-03-26T13:00:00.000Z'],
+    ['2026-10-26', '2026-10-22T12:00:00.000Z'],
+    ['2026-01-05', '2026-01-01T13:00:00.000Z'],
+    ['2026-06-01', '2026-05-28T12:00:00.000Z'],
+  ])('calcule l’échéance de %s en tenant compte du fuseau de Paris', (menuDate, expected) => {
+    expect(reservationDeadline(menuDate).toISOString()).toBe(expected)
+    expect(isReservationOpen(menuDate, new Date(Date.parse(expected) - 1))).toBe(true)
+    expect(isReservationOpen(menuDate, new Date(expected))).toBe(false)
+    expect(isReservationOpen(menuDate, new Date(Date.parse(expected) + 1))).toBe(false)
+  })
+
+  it('reste clôturée pendant la semaine du repas et laisse ouvertes les semaines ultérieures', () => {
+    const now = new Date('2026-10-05T08:00:00Z')
+    expect(isReservationOpen('2026-10-05', now)).toBe(false)
+    expect(isReservationOpen('2026-10-11', now)).toBe(false)
+    expect(isReservationOpen('2026-10-12', now)).toBe(true)
+    expect(formatReservationDeadline('2026-10-05')).toBe('jeudi 1 octobre 2026 à 14 h (heure de Paris)')
   })
 })

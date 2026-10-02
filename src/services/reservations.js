@@ -16,15 +16,36 @@ export async function fetchReservationsForMenus(menuIds) {
 
 /** Réserve (ou ré-active) un repas pour l'utilisateur connecté. */
 export async function reserveMeal(userId, menuId) {
+  return saveMealSelections(userId, [{ menuId, reserved: true }])
+}
+
+/** Enregistre les choix de repas en une seule requête, y compris les refus explicites. */
+export async function saveMealSelections(userId, selections) {
+  if (selections.length === 0) return
   const { error } = await supabase
     .from('reservations')
-    .upsert({ user_id: userId, menu_id: menuId, status: 'reserved' }, { onConflict: 'user_id,menu_id' })
+    .upsert(
+      selections.map(({ menuId, reserved }) => ({
+        user_id: userId,
+        menu_id: menuId,
+        status: reserved ? 'reserved' : 'cancelled',
+      })),
+      { onConflict: 'user_id,menu_id' },
+    )
   if (error) throw error
 }
 
 /** Annule une réservation de l'utilisateur connecté. */
 export async function cancelReservation(reservationId) {
-  const { error } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', reservationId)
+  const { error } = await supabase
+    .from('reservations')
+    .update({ status: 'cancelled' })
+    .eq('id', reservationId)
+    .select('id')
+    .single()
+  if (error?.code === 'PGRST116') {
+    throw new Error('Annulation impossible : réservation clôturée, introuvable ou accès refusé.')
+  }
   if (error) throw error
 }
 

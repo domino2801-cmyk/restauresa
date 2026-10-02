@@ -1,27 +1,52 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { WeekNavigator } from '../../components/WeekNavigator'
-import { Alert, Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
+import { Alert, Button, Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
 import { useAuth } from '../../hooks/useAuth'
 import { SERVICES, SERVICE_LABELS, SERVICE_SHORT_LABELS } from '../../lib/constants'
-import { addDays, formatDayLabel, isTodayOrFuture, startOfWeek, toISODate, weekDays } from '../../lib/dates'
+import { addDays, formatDayLabel, formatReservationDeadline, isReservationOpen, reservationDeadline, startOfWeek, toISODate, weekDays } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { formatOrganizationName } from '../../lib/organization'
 import { fetchMenus } from '../../services/meals'
-import { cancelReservation, fetchReservationsForMenus, reserveMeal } from '../../services/reservations'
+import { fetchReservationsForMenus, saveMealSelections } from '../../services/reservations'
 
 /** Réservation des repas de la semaine pour l'utilisateur connecté (tous rôles). */
 export default function MyReservationsPage() {
   const { profile } = useAuth()
   const [monday, setMonday] = useState(() => startOfWeek(new Date()))
-  const [pending, setPending] = useState(null)
+  const [includeWeekend, setIncludeWeekend] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [drafts, setDrafts] = useState({})
+  const [confirmed, setConfirmed] = useState(false)
   const [actionError, setActionError] = useState(null)
+  const [now, setNow] = useState(() => new Date())
   const days = useMemo(() => weekDays(monday), [monday])
+  const weekKey = toISODate(monday)
+  const deadline = reservationDeadline(weekKey).getTime()
+  const bookingOpen = now.getTime() < deadline
+  const draft = drafts[weekKey] ?? {}
+  const visibleDays = includeWeekend ? days : days.slice(0, 5)
+
+  useEffect(() => {
+    const refresh = () => setNow(new Date())
+    const delay = deadline - Date.now()
+    const timer = delay > 0 && delay <= 2147483647 ? setTimeout(refresh, delay) : null
+    const interval = setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    refresh()
+    return () => {
+      clearTimeout(timer)
+      clearInterval(interval)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [deadline])
 
   const load = useCallback(async () => {
     const menus = await fetchMenus(toISODate(monday), toISODate(addDays(monday, 6)))
     const reservations = await fetchReservationsForMenus(menus.map((m) => m.id))
-    return { menus, reservations: reservations.filter((r) => r.user_id === profile.id) }
+    return { weekKey: toISODate(monday), menus, reservations: reservations.filter((r) => r.user_id === profile.id) }
   }, [monday, profile.id])
 
   const { data, error, loading, reload } = useAsync(load)
@@ -38,19 +63,53 @@ export default function MyReservationsPage() {
   )
 
   const reservedCount = (data?.reservations ?? []).filter((r) => r.status === 'reserved').length
-
-  const toggle = async (menu) => {
+  const ready = data?.weekKey === weekKey && !loading && !error
+  const defaultLunch = (menu) => menu.service === 'dejeuner' && days.slice(0, 4).includes(menu.menu_date)
+  const isSelected = (menu) => {
     const reservation = reservationByMenu.get(menu.id)
-    setPending(menu.id)
+    if (!bookingOpen) return reservation?.status === 'reserved'
+    return draft[menu.id] ?? (reservation
+      ? reservation.status === 'reserved'
+      : defaultLunch(menu))
+  }
+  const changes = ready && bookingOpen ? data.menus
+    .filter((menu) => {
+      const reservation = reservationByMenu.get(menu.id)
+      return isSelected(menu) !== (reservation?.status === 'reserved') || (!reservation && defaultLunch(menu))
+    })
+    .map((menu) => ({ menuId: menu.id, reserved: isSelected(menu) })) : []
+
+  const toggle = (menu) => {
+    if (!isReservationOpen(menu.menu_date)) {
+      setNow(() => new Date())
+      setActionError('Réservations clôturées : aucune réservation, modification ou annulation n’est possible.')
+      return
+    }
+    setDrafts((current) => ({
+      ...current,
+      [weekKey]: { ...current[weekKey], [menu.id]: !isSelected(menu) },
+    }))
+    setConfirmed(false)
+    setActionError(null)
+  }
+
+  const confirm = async () => {
+    if (!isReservationOpen(weekKey)) {
+      setNow(() => new Date())
+      setActionError('Réservations clôturées : vos choix non confirmés n’ont pas été enregistrés.')
+      return
+    }
+    setPending(true)
+    setConfirmed(false)
     setActionError(null)
     try {
-      if (reservation?.status === 'reserved') await cancelReservation(reservation.id)
-      else await reserveMeal(profile.id, menu.id)
+      await saveMealSelections(profile.id, changes)
+      setConfirmed(true)
       await reload()
     } catch (err) {
       setActionError(errorMessage(err))
     } finally {
-      setPending(null)
+      setPending(false)
     }
   }
 
@@ -67,15 +126,40 @@ export default function MyReservationsPage() {
           .map(formatOrganizationName)
           .concat(`${reservedCount} repas réservé${reservedCount > 1 ? 's' : ''} cette semaine`)
           .join(' · ')}
-        actions={<WeekNavigator monday={monday} onChange={setMonday} />}
+        actions={
+          <fieldset disabled={pending}>
+            <WeekNavigator monday={monday} onChange={(nextMonday) => {
+              setMonday(nextMonday)
+              setConfirmed(false)
+              setActionError(null)
+            }} />
+          </fieldset>
+        }
       />
       <Alert tone="error" className="mb-4">
         {actionError ?? errorMessage(error)}
       </Alert>
-      {loading && !data ? (
+      <Alert tone="success" className="mb-4">
+        {confirmed && !error ? 'Vos réservations ont été enregistrées.' : null}
+      </Alert>
+      <Alert tone={bookingOpen ? 'info' : 'warning'} className="mb-4">
+        {bookingOpen
+          ? `Confirmez vos repas avant le ${formatReservationDeadline(weekKey)}.`
+          : `Réservations clôturées depuis le ${formatReservationDeadline(weekKey)}. Aucune réservation, modification ou annulation n’est possible. Seuls les repas enregistrés sont affichés cochés.`}
+      </Alert>
+      {loading || (data && data.weekKey !== weekKey) ? (
         <Spinner />
       ) : (
         <Card title="Réservations de la semaine">
+          <label className="mb-3 flex min-h-12 cursor-pointer items-center gap-3 text-sm text-steel-900">
+            <input
+              type="checkbox"
+              className="size-5 accent-olive-700"
+              checked={includeWeekend}
+              onChange={(event) => setIncludeWeekend(event.target.checked)}
+            />
+            Week-end
+          </label>
           <div className="-mx-2 overflow-x-auto px-2">
             <table className="w-full min-w-[34rem] text-sm">
               <thead>
@@ -89,8 +173,8 @@ export default function MyReservationsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-steel-100">
-                {days.map((day) => {
-                  const editable = isTodayOrFuture(day)
+                {visibleDays.map((day) => {
+                  const editable = bookingOpen
                   const dayLabel = formatDayLabel(day, { weekday: 'long', day: 'numeric', month: 'long' })
                   return (
                     <tr key={day}>
@@ -99,8 +183,6 @@ export default function MyReservationsPage() {
                       </th>
                       {SERVICES.map((service) => {
                         const menu = menuIndex.get(`${day}|${service}`)
-                        const reservation = menu && reservationByMenu.get(menu.id)
-                        const reserved = reservation?.status === 'reserved'
                         const available = Boolean(menu && editable)
                         const label = `${SERVICE_LABELS[service]} ${dayLabel}${
                           !menu ? ' — aucun menu publié' : !editable ? ' — réservation fermée' : ''
@@ -112,8 +194,8 @@ export default function MyReservationsPage() {
                                 <input
                                   type="checkbox"
                                   className="size-5 accent-olive-700 disabled:cursor-not-allowed"
-                                  checked={Boolean(reserved)}
-                                  disabled={!available || pending === menu.id}
+                                  checked={isSelected(menu)}
+                                  disabled={!available || pending || !ready}
                                   aria-label={label}
                                   onChange={() => toggle(menu)}
                                 />
@@ -136,10 +218,24 @@ export default function MyReservationsPage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-steel-600">Cochez ou décochez un repas pour réserver ou annuler.</p>
+          <p className="mt-3 text-xs text-steel-600">
+            Avant la clôture, les DEJ du lundi au jeudi sont précochés lorsqu’un menu est disponible.
+            Cochez ou décochez vos repas, puis confirmez pour enregistrer vos réservations ou annulations.
+          </p>
+          <p className="mt-1 text-xs text-steel-600">
+            Cochez « Week-end » pour afficher samedi et dimanche. Masquer ces jours ne supprime pas leurs réservations.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button loading={pending} disabled={!ready || changes.length === 0} onClick={confirm}>
+              Confirmer mes réservations
+            </Button>
+            {changes.length > 0 && (
+              <p role="status" className="text-sm text-steel-600">Choix non enregistrés : confirmation nécessaire.</p>
+            )}
+          </div>
         </Card>
       )}
-      {data && data.menus.length === 0 && <EmptyState>Aucun menu publié pour cette semaine.</EmptyState>}
+      {ready && data.menus.length === 0 && <EmptyState>Aucun menu publié pour cette semaine.</EmptyState>}
     </>
   )
 }
