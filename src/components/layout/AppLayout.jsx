@@ -8,6 +8,7 @@ import { Logo } from './Logo'
 const NAV_BY_ROLE = {
   [ROLES.ADMIN]: [
     { to: '/admin', label: 'Administration' },
+    { to: '/restauration', label: 'Restauration' },
     { to: '/reservations', label: 'Mes repas' },
   ],
   [ROLES.ADU]: [
@@ -19,6 +20,10 @@ const NAV_BY_ROLE = {
     { to: '/reservations', label: 'Mes repas' },
   ],
   [ROLES.USER]: [{ to: '/reservations', label: 'Mes repas' }],
+  [ROLES.CATERING]: [
+    { to: '/restauration', label: 'Restauration' },
+    { to: '/reservations', label: 'Mes repas' },
+  ],
 }
 
 const linkClass = ({ isActive }) =>

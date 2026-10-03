@@ -3,6 +3,7 @@ export const ROLES = Object.freeze({
   ADMIN: 'admin',
   ADU: 'adu',
   CDU: 'cdu',
+  CATERING: 'restauration',
   USER: 'user',
 })
 
@@ -10,6 +11,7 @@ export const ROLE_LABELS = Object.freeze({
   admin: 'Administrateur',
   adu: 'ADU — Adjudant de compagnie',
   cdu: 'CDU — Commandant de compagnie',
+  restauration: 'Restauration',
   user: 'Militaire',
 })
 
@@ -18,6 +20,7 @@ export const ROLE_HOME = Object.freeze({
   admin: '/admin',
   adu: '/adu',
   cdu: '/cdu',
+  restauration: '/restauration',
   user: '/reservations',
 })
 

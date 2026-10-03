@@ -117,7 +117,7 @@ export default function UsersPage() {
       <PageHeader title="Utilisateurs" subtitle={`${pendingCount} compte(s) en attente de validation`} />
       <Alert tone="info" className="mb-4">
         Les comptes sont activés automatiquement après confirmation de leur email.
-        Les rôles ADU, CDU et administrateur restent attribués uniquement par un administrateur.
+        Les rôles ADU, CDU, restauration et administrateur restent attribués uniquement par un administrateur.
       </Alert>
       <Card>
         <div className="mb-2">

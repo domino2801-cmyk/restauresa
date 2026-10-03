@@ -33,6 +33,8 @@ Appliquer cette migration Supabase avant publication des textes de l'interface.
 | **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section, suppression du compte via la fonction `admin_delete_user`) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine limités au déjeuner**. |
 | **ADU** – Adjudant de compagnie (`adu`) | `/adu` | Qui a réservé dans sa compagnie (par date et service), **triable par section / nom / statut**, filtre réservés / non réservés, **réservation / annulation pour tous les personnels de sa CIE jusqu'à J-2 à 14 h**, synthèse par section, pointage de présence, **export CSV** et **validation de l'effectif** transmis aux cuisines. |
 | **CDU** – Commandant de compagnie (`cdu`) | `/cdu` | KPIs (taux de réservation, **taux de présence**, coût estimé, effectifs à approuver), **bilan hebdomadaire par jour** (effectif prévu, passé, absences pointées, pointages manquants, perte financière estimée), graphiques par jour et par section, **revue des effectifs** (approbation / rejet motivé). |
+| **Restauration** (`restauration`) | `/restauration` | Vue globale de toutes les compagnies, par jour et service : réservations actives, passages, pourcentage de passage et fréquentation par tranches de 30 minutes (heure de Paris). Aucun nom, identifiant ou détail individuel n'est renvoyé. Accessible aussi à l'administrateur. |
+| **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas du lundi au vendredi, avec une case **« Week-end »** pour afficher samedi et dimanche. Masquer le week-end conserve les réservations existantes et leur inclusion dans le total hebdomadaire. Accessible aussi aux autres rôles via « Mes repas ». |
 
 Le bilan CDU porte uniquement sur sa compagnie et compte un passage par repas réservé.
 La perte financière estimée additionne le prix des repas réservés dont l'absence a été
@@ -44,7 +46,21 @@ avec les consommations, pointages manquants et pertes estimées. Le taux de
 non-consommation se calcule sur les seuls repas pointés (présences + absences) ;
 sans pointage, il est indiqué comme non disponible. Le rattachement est celui de la
 section actuelle du personnel ; les personnels non affectés figurent sous « Sans section ».
-| **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas du lundi au vendredi, avec une case **« Week-end »** pour afficher samedi et dimanche. Masquer le week-end conserve les réservations existantes et leur inclusion dans le total hebdomadaire. Accessible aussi aux autres rôles via « Mes repas ». |
+
+La fonction Restauration utilise uniquement la RPC agrégée `get_catering_overview`.
+Ce rôle n'élargit pas l'accès aux profils, réservations individuelles ou validations
+d'effectifs d'autres compagnies. Il est attribué par l'administrateur depuis les utilisateurs.
+Le pourcentage est `présences / réservations actives × 100` ; sans réservation, il est
+non disponible. Les passages anciens sans horodatage restent dans le pourcentage mais
+pas dans les tranches horaires. Les scans QR existants sont repris avec leur heure réelle ;
+les nouveaux pointages ADU sont horodatés à la saisie, qui peut différer de l'arrivée réelle.
+Un pointage saisi un autre jour que le repas est exclu des tranches et signalé.
+Les annulations sont exclues et aucun pointage n'est clôturé automatiquement.
+
+Avant de déployer cette interface, appliquer dans l'ordre les migrations
+`20261003000000_catering_role.sql` (nouvelle valeur d'enum, transaction séparée) puis
+`20261003010000_catering_overview.sql` (horodatage et RPC). Elles sont testées avec
+PGlite sans accès aux données de production. GitHub Pages ne les applique pas.
 
 Les **DEJ du lundi au jeudi** sont précochés avant la
 clôture, sauf si un choix a déjà été enregistré (notamment une annulation).
@@ -371,13 +387,14 @@ personnalisé avec : hôte `smtp.resend.com`, port `465`, utilisateur `resend`, 
 Le profil est créé automatiquement à l'inscription par le trigger `handle_new_user`
 (rattachement conservé uniquement s'il est cohérent). Principales règles :
 
-| Ressource | Militaire | ADU | CDU | Admin |
-| --- | --- | --- | --- | --- |
-| Organisation | lecture (aussi anonyme, pour l'inscription) | lecture | lecture | tout |
-| Profils | le sien (nom modifiable) | sa compagnie (lecture) | sa compagnie (lecture) | tout |
-| Catalogue / menus | lecture | lecture | lecture | tout |
-| Réservations | les siennes ; création/annulation si compte validé et menu à venir | sa compagnie : lecture + pointage de présence | sa compagnie : lecture | tout |
-| Validations d'effectifs | — | sa compagnie : soumission (tant que non approuvée) | sa compagnie : approbation / rejet | tout |
+| Ressource | Militaire | ADU | CDU | Restauration | Admin |
+| --- | --- | --- | --- | --- | --- |
+| Organisation | lecture (aussi anonyme, pour l'inscription) | lecture | lecture | lecture | tout |
+| Profils | le sien (nom modifiable) | sa compagnie (lecture) | sa compagnie (lecture) | le sien | tout |
+| Catalogue / menus | lecture | lecture | lecture | lecture | tout |
+| Réservations | les siennes ; création/annulation si compte validé et menu à venir | sa compagnie : lecture + pointage de présence | sa compagnie : lecture | les siennes uniquement | tout |
+| Validations d'effectifs | — | sa compagnie : soumission (tant que non approuvée) | sa compagnie : approbation / rejet | — | tout |
+| Statistiques globales restauration (RPC) | — | — | — | lecture agrégée si validé | lecture agrégée si validé |
 
 Des triggers complètent la RLS au niveau des colonnes : un non-administrateur ne peut
 modifier ni son rôle, ni sa validation, ni son rattachement ; l'ADU ne peut modifier que

@@ -27,6 +27,7 @@ const MealsPage = lazy(() => import('./pages/admin/MealsPage'))
 const WeeklyMenusPage = lazy(() => import('./pages/admin/WeeklyMenusPage'))
 const AduDashboardPage = lazy(() => import('./pages/adu/AduDashboardPage'))
 const CduDashboardPage = lazy(() => import('./pages/cdu/CduDashboardPage'))
+const CateringDashboardPage = lazy(() => import('./pages/catering/CateringDashboardPage'))
 
 /** Table de routage de l'application. */
 export function AppRoutes() {
@@ -63,6 +64,9 @@ export function AppRoutes() {
             </Route>
             <Route element={<ProtectedRoute roles={[ROLES.CDU]} />}>
               <Route path="cdu" element={<CduDashboardPage />} />
+            </Route>
+            <Route element={<ProtectedRoute roles={[ROLES.CATERING, ROLES.ADMIN]} />}>
+              <Route path="restauration" element={<CateringDashboardPage />} />
             </Route>
           </Route>
         </Route>

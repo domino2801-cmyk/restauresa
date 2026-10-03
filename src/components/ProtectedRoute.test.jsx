@@ -26,6 +26,9 @@ function renderAt(path, auth) {
             <Route element={<ProtectedRoute roles={['cdu']} />}>
               <Route path="/cdu" element={<p>cdu</p>} />
             </Route>
+            <Route element={<ProtectedRoute roles={['restauration', 'admin']} />}>
+              <Route path="/restauration" element={<p>restauration</p>} />
+            </Route>
           </Route>
         </Routes>
       </MemoryRouter>
@@ -57,6 +60,7 @@ describe('ProtectedRoute', () => {
     ['adu', 'adu'],
     ['cdu', 'cdu'],
     ['user', 'reservations'],
+    ['restauration', 'restauration'],
   ])('oriente le rôle %s vers son tableau de bord', (role, expected) => {
     renderAt('/', { session, profile: profileFor(role) })
     expect(screen.getByText(expected)).toBeInTheDocument()
@@ -70,5 +74,16 @@ describe('ProtectedRoute', () => {
   it("empêche un ADU d'accéder à l'interface CDU", () => {
     renderAt('/cdu', { session, profile: profileFor('adu') })
     expect(screen.getByText('adu')).toBeInTheDocument()
+  })
+
+  it.each(['user', 'adu', 'cdu'])('refuse au rôle %s la vue globale restauration', (role) => {
+    renderAt('/restauration', { session, profile: profileFor(role) })
+    expect(screen.queryByText('restauration')).not.toBeInTheDocument()
+    expect(screen.getByText(role === 'user' ? 'reservations' : role)).toBeInTheDocument()
+  })
+
+  it('ne donne pas au rôle restauration les droits CDU', () => {
+    renderAt('/cdu', { session, profile: profileFor('restauration') })
+    expect(screen.getByText('restauration')).toBeInTheDocument()
   })
 })
