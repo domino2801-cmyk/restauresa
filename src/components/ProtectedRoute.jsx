@@ -12,9 +12,10 @@ import { Alert, Button, Spinner } from './ui'
  * @param {{ roles?: string[] }} props
  */
 export function ProtectedRoute({ roles }) {
-  const { session, profile, profileError, loading, signOut } = useAuth()
+  const { session, profile, profileError, loading, signOut, passwordRecovery } = useAuth()
   const location = useLocation()
 
+  if (passwordRecovery) return <Navigate to="/reset-password" replace />
   if (loading) return <Spinner className="min-h-screen" />
   if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   if (profileError || !profile) {
@@ -40,7 +41,8 @@ export function RoleRedirect() {
 
 /** Routes publiques (connexion, inscription) : redirige si déjà connecté. */
 export function PublicOnlyRoute() {
-  const { session, loading } = useAuth()
+  const { session, loading, passwordRecovery } = useAuth()
+  if (passwordRecovery) return <Navigate to="/reset-password" replace />
   if (loading) return <Spinner className="min-h-screen" />
   if (session) return <Navigate to="/" replace />
   return <Outlet />

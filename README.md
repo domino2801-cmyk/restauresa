@@ -196,6 +196,11 @@ base de données et l'authentification. Suivez les étapes dans l'ordre :
    `https://domino2801-cmyk.github.io/restauresa/reset-password` aux *Redirect URLs*.
    Les liens de récupération demandés depuis `localhost` renvoient aussi vers le site
    publié, afin qu'ils restent utilisables après l'arrêt du serveur local.
+   L'application détecte l'événement Supabase `PASSWORD_RECOVERY` et ouvre le
+   formulaire de nouveau mot de passe même si le lien revient sur l'accueil.
+   Si un lien revient encore sur `localhost`, vérifiez aussi le modèle
+   *Reset password* : il doit utiliser `{{ .ConfirmationURL }}`, et non une URL locale
+   écrite en dur. Ces réglages du projet hébergé ne sont pas modifiés par GitHub Pages.
    Configurez également un serveur SMTP personnalisé pour la production. Les détails
    figurent dans [Configuration Supabase](#configuration-supabase).
 4. **Déployer l'Edge Function** de connexion par nom :

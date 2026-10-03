@@ -13,7 +13,7 @@ import { updatePassword } from '../../services/auth'
  */
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
-  const { session, loading } = useAuth()
+  const { session, loading, finishPasswordRecovery } = useAuth()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState(null)
@@ -33,6 +33,7 @@ export default function ResetPasswordPage() {
     setSubmitting(true)
     try {
       await updatePassword(password)
+      finishPasswordRecovery()
       navigate('/', { replace: true })
     } catch (err) {
       setError(errorMessage(err))

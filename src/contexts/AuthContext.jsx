@@ -22,6 +22,7 @@ async function resolveProfile(userId) {
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [sessionLoading, setSessionLoading] = useState(true)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
   // Profil chargé pour `loadedFor` (identifiant utilisateur) : évite d'afficher
   // l'interface d'un compte avec le profil d'un autre.
   const [profileState, setProfileState] = useState({ loadedFor: null, profile: null, error: null })
@@ -35,6 +36,8 @@ export function AuthProvider({ children }) {
     })
     // Pas de requête Supabase dans ce callback (recommandation supabase-js).
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
+      if (event === 'SIGNED_OUT') setPasswordRecovery(false)
       // Déconnexion (manuelle ou expiration) : on purge les données mises en
       // cache hors-ligne pour qu'elles ne soient pas servies à un autre utilisateur.
       if (event === 'SIGNED_OUT' && 'caches' in window) caches.delete(API_CACHE_NAME)
@@ -66,11 +69,15 @@ export function AuthProvider({ children }) {
     await signOutRequest()
   }, [])
 
+  const finishPasswordRecovery = useCallback(() => setPasswordRecovery(false), [])
+
   const profileReady = !userId || profileState.loadedFor === userId
 
   const value = useMemo(
     () => ({
       session,
+      passwordRecovery,
+      finishPasswordRecovery,
       user: session?.user ?? null,
       profile: profileReady ? profileState.profile : null,
       profileError: profileReady ? profileState.error : null,
@@ -78,7 +85,7 @@ export function AuthProvider({ children }) {
       refreshProfile: loadProfile,
       signOut,
     }),
-    [session, profileState, profileReady, sessionLoading, loadProfile, signOut],
+    [session, passwordRecovery, finishPasswordRecovery, profileState, profileReady, sessionLoading, loadProfile, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
