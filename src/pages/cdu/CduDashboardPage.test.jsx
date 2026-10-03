@@ -4,8 +4,9 @@ import { fetchCompanyMembers } from '../../services/profiles'
 import { fetchHeadcounts, fetchReservationsForMenus } from '../../services/reservations'
 import CduDashboardPage from './CduDashboardPage'
 
+let account
 vi.mock('../../hooks/useAuth', () => ({
-  useAuth: () => ({ profile: { company_id: 'company-1', company: { name: '1 CIE' } } }),
+  useAuth: () => ({ profile: account }),
 }))
 vi.mock('../../services/meals', () => ({ fetchMenus: vi.fn() }))
 vi.mock('../../services/profiles', () => ({ fetchCompanyMembers: vi.fn() }))
@@ -26,6 +27,7 @@ vi.mock('recharts', () => ({
 }))
 
 beforeEach(() => {
+  account = { role: 'cdu', company_id: 'company-1', company: { name: '1 CIE' } }
   vi.clearAllMocks()
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-02T12:00:00Z'))
@@ -49,6 +51,21 @@ beforeEach(() => {
 
 afterEach(() => vi.useRealTimers())
 
+it('charge la compagnie sélectionnée par l’administrateur plutôt que celle du compte', async () => {
+  account = { role: 'admin', company_id: 'own-company' }
+  render(<CduDashboardPage companyContext={{ company_id: 'selected-company', company: { name: '2 CIE' } }} />)
+  await screen.findByRole('columnheader', { name: 'Pointages manquants' })
+  expect(fetchCompanyMembers).toHaveBeenCalledWith('selected-company')
+  expect(fetchHeadcounts).toHaveBeenCalledWith('selected-company', expect.any(Array))
+  expect(fetchCompanyMembers).not.toHaveBeenCalledWith('own-company')
+})
+
+it('ignore une compagnie fournie au compte CDU', async () => {
+  render(<CduDashboardPage companyContext={{ company_id: 'outside-company' }} />)
+  await screen.findByRole('columnheader', { name: 'Pointages manquants' })
+  expect(fetchCompanyMembers).toHaveBeenCalledWith('company-1')
+  expect(fetchCompanyMembers).not.toHaveBeenCalledWith('outside-company')
+})
 it('affiche sept jours, les totaux de sa compagnie et la perte au prix du repas', async () => {
   render(<CduDashboardPage />)
   const table = (await screen.findByRole('columnheader', { name: 'Pointages manquants' })).closest('table')

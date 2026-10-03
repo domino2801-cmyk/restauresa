@@ -1,4 +1,4 @@
-import { cancelReservation, reserveMeal, saveMealSelections, setCompanyReservation } from './reservations'
+import { cancelReservation, reserveMeal, saveMealSelections, setCompanyReservation, submitHeadcount } from './reservations'
 
 const upsert = vi.fn()
 const single = vi.fn()
@@ -70,7 +70,17 @@ describe('saveMealSelections', () => {
     expect(rpc).toHaveBeenCalledWith('set_company_reservation', {
       target_user_id: 'user-2', target_menu_id: 'menu-1', reserve: false,
     })
+
     rpc.mockResolvedValue({ error: new Error('Modifications ADU clôturées') })
     await expect(setCompanyReservation('user-2', 'menu-1', true)).rejects.toThrow('Modifications ADU clôturées')
+  })
+
+  it('remet un effectif transmis en attente sans conserver la décision précédente', async () => {
+    await submitHeadcount({ companyId: 'company-2', menuId: 'menu-1', reservedCount: 3, totalMembers: 5 })
+    expect(from).toHaveBeenCalledWith('headcount_validations')
+    expect(upsert).toHaveBeenCalledWith({
+      company_id: 'company-2', menu_id: 'menu-1', reserved_count: 3, total_members: 5,
+      status: 'submitted', reviewed_at: null, reviewed_by: null, comment: null,
+    }, { onConflict: 'company_id,menu_id' })
   })
 })

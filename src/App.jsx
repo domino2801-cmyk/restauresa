@@ -28,6 +28,7 @@ const WeeklyMenusPage = lazy(() => import('./pages/admin/WeeklyMenusPage'))
 const AduDashboardPage = lazy(() => import('./pages/adu/AduDashboardPage'))
 const CduDashboardPage = lazy(() => import('./pages/cdu/CduDashboardPage'))
 const CateringDashboardPage = lazy(() => import('./pages/catering/CateringDashboardPage'))
+const AdminCompanyDashboardPage = lazy(() => import('./pages/admin/AdminCompanyDashboardPage'))
 
 /** Table de routage de l'application. */
 export function AppRoutes() {
@@ -59,11 +60,11 @@ export function AppRoutes() {
                 <Route path="qr" element={<EstablishmentQrPage />} />
               </Route>
             </Route>
-            <Route element={<ProtectedRoute roles={[ROLES.ADU]} />}>
-              <Route path="adu" element={<AduDashboardPage />} />
+            <Route element={<ProtectedRoute roles={[ROLES.ADU, ROLES.ADMIN]} />}>
+              <Route path="adu" element={<AdminCompanyDashboardPage dashboard={AduDashboardPage} title="ADU" />} />
             </Route>
-            <Route element={<ProtectedRoute roles={[ROLES.CDU]} />}>
-              <Route path="cdu" element={<CduDashboardPage />} />
+            <Route element={<ProtectedRoute roles={[ROLES.CDU, ROLES.ADMIN]} />}>
+              <Route path="cdu" element={<AdminCompanyDashboardPage dashboard={CduDashboardPage} title="CDU" />} />
             </Route>
             <Route element={<ProtectedRoute roles={[ROLES.CATERING, ROLES.ADMIN]} />}>
               <Route path="restauration" element={<CateringDashboardPage />} />

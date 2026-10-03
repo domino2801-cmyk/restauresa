@@ -9,6 +9,8 @@ const NAV_BY_ROLE = {
   [ROLES.ADMIN]: [
     { to: '/admin', label: 'Administration' },
     { to: '/restauration', label: 'Restauration' },
+    { to: '/adu', label: 'ADU' },
+    { to: '/cdu', label: 'CDU' },
     { to: '/reservations', label: 'Mes repas' },
   ],
   [ROLES.ADU]: [

@@ -13,7 +13,7 @@ import { WeekNavigator } from '../../components/WeekNavigator'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner, StatCard } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
 import { useAuth } from '../../hooks/useAuth'
-import { HEADCOUNT_STATUS_LABELS, SERVICES, SERVICE_LABELS } from '../../lib/constants'
+import { HEADCOUNT_STATUS_LABELS, ROLES, SERVICES, SERVICE_LABELS } from '../../lib/constants'
 import { addDays, formatDayLabel, startOfWeek, toISODate, weekDays } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { formatOrganizationName } from '../../lib/organization'
@@ -26,8 +26,9 @@ const STATUS_TONES = { submitted: 'khaki', approved: 'olive', rejected: 'red' }
 const euro = (value) => value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
 
 /** Interface CDU : supervision, indicateurs clés et revue des effectifs. */
-export default function CduDashboardPage() {
-  const { profile } = useAuth()
+export default function CduDashboardPage({ companyContext } = {}) {
+  const { profile: account } = useAuth()
+  const profile = account.role === ROLES.ADMIN && companyContext ? { ...account, ...companyContext } : account
   const companyId = profile.company_id
   const [monday, setMonday] = useState(() => startOfWeek(new Date()))
   const [actionError, setActionError] = useState(null)

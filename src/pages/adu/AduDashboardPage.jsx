@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, Select, Spinner, StatCard } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
 import { useAuth } from '../../hooks/useAuth'
-import { HEADCOUNT_STATUS_LABELS, SERVICES, SERVICE_LABELS } from '../../lib/constants'
+import { HEADCOUNT_STATUS_LABELS, ROLES, SERVICES, SERVICE_LABELS } from '../../lib/constants'
 import { downloadCSV, toCSV } from '../../lib/csv'
 import { aduReservationDeadline, formatAduReservationDeadline, formatDayLabel, isAduReservationOpen, toISODate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
@@ -15,6 +15,7 @@ import {
   fetchReservationsForMenus,
   setAttendance,
   setCompanyReservation,
+  saveMealSelections,
   submitHeadcount,
 } from '../../services/reservations'
 
@@ -31,8 +32,10 @@ const FILTER_OPTIONS = [
 const STATUS_TONES = { submitted: 'khaki', approved: 'olive', rejected: 'red' }
 
 /** Interface ADU : suivi des réservations de la compagnie et transmission aux cuisines. */
-export default function AduDashboardPage() {
-  const { profile } = useAuth()
+export default function AduDashboardPage({ companyContext } = {}) {
+  const { profile: account } = useAuth()
+  const isAdmin = account.role === ROLES.ADMIN
+  const profile = isAdmin && companyContext ? { ...account, ...companyContext } : account
   const companyId = profile.company_id
   const [date, setDate] = useState(() => toISODate(new Date()))
   const [service, setService] = useState('dejeuner')
@@ -42,7 +45,7 @@ export default function AduDashboardPage() {
   const [busy, setBusy] = useState(null)
   const [now, setNow] = useState(() => new Date())
   const deadline = aduReservationDeadline(date).getTime()
-  const reservationsOpen = now.getTime() < deadline
+  const reservationsOpen = isAdmin || now.getTime() < deadline
 
   useEffect(() => {
     const refresh = () => setNow(new Date())
@@ -136,12 +139,14 @@ export default function AduDashboardPage() {
   }
 
   const changeReservation = (row, reserved) => {
-    if (!isAduReservationOpen(date)) {
+    if (!isAdmin && !isAduReservationOpen(date)) {
       setNow(() => new Date())
       setActionError('Modifications ADU clôturées : échéance de J-2 à 14 h (heure de Paris) dépassée.')
       return
     }
-    return run(`booking-${row.id}`, () => setCompanyReservation(row.id, view.menu.id, reserved))
+    return run(`booking-${row.id}`, () => isAdmin
+      ? saveMealSelections(row.id, [{ menuId: view.menu.id, reserved }])
+      : setCompanyReservation(row.id, view.menu.id, reserved))
   }
 
   if (!companyId) {
@@ -287,7 +292,9 @@ export default function AduDashboardPage() {
               }
             >
               <Alert tone={reservationsOpen ? 'info' : 'warning'} className="mb-3">
-                {reservationsOpen
+                {isAdmin
+                  ? 'Mode administrateur : corrections de réservation autorisées après clôture pour la compagnie sélectionnée. Chaque case est enregistrée immédiatement.'
+                  : reservationsOpen
                   ? `Vous pouvez réserver ou annuler les repas de tous les personnels de votre CIE jusqu’au ${formatAduReservationDeadline(date)} (J-2). Chaque case est enregistrée immédiatement.`
                   : `Modifications ADU clôturées depuis le ${formatAduReservationDeadline(date)} (J-2). Le pointage de présence reste disponible.`}
               </Alert>

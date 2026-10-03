@@ -1,12 +1,14 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { setAttendance, setCompanyReservation } from '../../services/reservations'
+import { saveMealSelections, setAttendance, setCompanyReservation } from '../../services/reservations'
+import { fetchCompanyMembers } from '../../services/profiles'
 import AduDashboardPage from './AduDashboardPage'
 
 let reservations
 let headcounts
+let account
 vi.mock('../../hooks/useAuth', () => ({
-  useAuth: () => ({ profile: { id: 'adu', company_id: 'cie-1', company: { name: '3ème CIE' } } }),
+  useAuth: () => ({ profile: account }),
 }))
 vi.mock('../../services/profiles', () => ({
   fetchCompanyMembers: vi.fn(async () => [
@@ -23,6 +25,7 @@ vi.mock('../../services/reservations', () => ({
   fetchHeadcounts: vi.fn(async () => headcounts),
   submitHeadcount: vi.fn(),
   setAttendance: vi.fn(async () => {}),
+  saveMealSelections: vi.fn(async () => {}),
   setCompanyReservation: vi.fn(async (userId, menuId, reserved) => {
     reservations = [
       ...reservations.filter((r) => r.user_id !== userId),
@@ -32,6 +35,7 @@ vi.mock('../../services/reservations', () => ({
 }))
 
 beforeEach(() => {
+  account = { id: 'adu', role: 'adu', company_id: 'cie-1', company: { name: '3ème CIE' } }
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-02T08:00:00Z'))
   reservations = [{ id: 'r-member', user_id: 'member', menu_id: 'menu', status: 'reserved', attended: false }]
@@ -50,6 +54,24 @@ async function openMonday() {
 }
 
 describe('réservations ADU', () => {
+  it('utilise la compagnie sélectionnée et les droits de correction administrateur après clôture', async () => {
+    account = { id: 'admin', role: 'admin', company_id: 'own-company' }
+    render(<AduDashboardPage companyContext={{ company_id: 'selected-company', company: { name: '2 CIE' } }} />)
+    const client = await screen.findByRole('checkbox', { name: 'Réserver Déjeuner pour Client Test' })
+    expect(fetchCompanyMembers).toHaveBeenCalledWith('selected-company')
+    expect(client).toBeEnabled()
+    expect(screen.getByText(/Mode administrateur/)).toBeInTheDocument()
+    fireEvent.click(client)
+    await waitFor(() => expect(saveMealSelections).toHaveBeenCalledWith('member', [{ menuId: 'menu', reserved: false }]))
+    expect(setCompanyReservation).not.toHaveBeenCalled()
+  })
+
+  it('ignore une compagnie fournie au compte ADU', async () => {
+    render(<AduDashboardPage companyContext={{ company_id: 'outside-company' }} />)
+    await screen.findByRole('checkbox', { name: 'Réserver Déjeuner pour Client Test' })
+    expect(fetchCompanyMembers).toHaveBeenCalledWith('cie-1')
+    expect(fetchCompanyMembers).not.toHaveBeenCalledWith('outside-company')
+  })
   it('permet de réserver ou annuler pour tous les personnels de sa CIE, y compris soi-même', async () => {
     const client = await openMonday()
     expect(client).toBeEnabled()

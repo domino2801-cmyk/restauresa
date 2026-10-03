@@ -33,7 +33,7 @@ Appliquer cette migration Supabase avant publication des textes de l'interface.
 | **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section, suppression du compte via la fonction `admin_delete_user`) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine limités au déjeuner**. |
 | **ADU** – Adjudant de compagnie (`adu`) | `/adu` | Qui a réservé dans sa compagnie (par date et service), **triable par section / nom / statut**, filtre réservés / non réservés, **réservation / annulation pour tous les personnels de sa CIE jusqu'à J-2 à 14 h**, synthèse par section, pointage de présence, **export CSV** et **validation de l'effectif** transmis aux cuisines. |
 | **CDU** – Commandant de compagnie (`cdu`) | `/cdu` | KPIs (taux de réservation, **taux de présence**, coût estimé, effectifs à approuver), **bilan hebdomadaire par jour** (effectif prévu, passé, absences pointées, pointages manquants, perte financière estimée), graphiques par jour et par section, **revue des effectifs** (approbation / rejet motivé). |
-| **Restauration** (`restauration`) | `/restauration` | Vue globale de toutes les compagnies, par jour et service : réservations actives, passages, pourcentage de passage et fréquentation par tranches de 30 minutes (heure de Paris). Aucun nom, identifiant ou détail individuel n'est renvoyé. Accessible aussi à l'administrateur. |
+| **Restauration** (`restauration`) | `/restauration` | Vue globale de toutes les compagnies, par jour et service : réservations actives, passages, pourcentage de passage et fréquentation par tranches de 15 minutes (heure de Paris). Aucun nom, identifiant ou détail individuel n'est renvoyé. Accessible aussi à l'administrateur. |
 | **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas du lundi au vendredi, avec une case **« Week-end »** pour afficher samedi et dimanche. Masquer le week-end conserve les réservations existantes et leur inclusion dans le total hebdomadaire. Accessible aussi aux autres rôles via « Mes repas ». |
 
 Le bilan CDU porte uniquement sur sa compagnie et compte un passage par repas réservé.
@@ -56,11 +56,21 @@ pas dans les tranches horaires. Les scans QR existants sont repris avec leur heu
 les nouveaux pointages ADU sont horodatés à la saisie, qui peut différer de l'arrivée réelle.
 Un pointage saisi un autre jour que le repas est exclu des tranches et signalé.
 Les annulations sont exclues et aucun pointage n'est clôturé automatiquement.
+Le graphique et les chiffres par tranche sont limités au petit-déjeuner de **6 h 30 à
+7 h 30**, au déjeuner de **11 h 30 à 13 h 30** et au dîner de **17 h 45 à 19 h**.
+Chaque tranche inclut son début et exclut sa fin : le déjeuner comporte huit
+tranches, la dernière de 13 h 15 à 13 h 30. Les passages hors horaires restent
+dans les totaux et le pourcentage, mais sont exclus du graphique et signalés.
+Ces horaires ne restreignent pas le pointage QR ou ADU.
 
 Avant de déployer cette interface, appliquer dans l'ordre les migrations
 `20261003000000_catering_role.sql` (nouvelle valeur d'enum, transaction séparée) puis
 `20261003010000_catering_overview.sql` (horodatage et RPC). Elles sont testées avec
 PGlite sans accès aux données de production. GitHub Pages ne les applique pas.
+Appliquer ensuite `20261003020000_catering_quarter_hours.sql` avant de publier
+les tranches de 15 minutes. La RPC conserve `half_hours` pour les anciens clients
+et ajoute `quarter_hours` ; le nouveau frontend signale explicitement une migration
+manquante plutôt que d'afficher des chiffres horaires incorrects.
 
 Les **DEJ du lundi au jeudi** sont précochés avant la
 clôture, sauf si un choix a déjà été enregistré (notamment une annulation).
@@ -76,6 +86,16 @@ confirmée réaffiche le rappel ; après clôture, l'avertissement de fermeture 
 La grille « Mes repas » s'adapte aux petits écrans sans défilement horizontal :
 les colonnes PDJ / DEJ / DIN restent visibles, les dates peuvent revenir à la ligne
 et le bouton de confirmation occupe la largeur disponible sur mobile.
+
+La navigation administrateur propose aussi les onglets **ADU** et **CDU**, comme
+**Restauration**. Un sélecteur permet de choisir une compagnie de n'importe quel
+régiment, sans modifier le profil administrateur. Changer de compagnie réinitialise
+la vue pour éviter de conserver les données ou actions de la compagnie précédente.
+L'onglet ADU permet les corrections de réservation avec les droits administrateur
+existants, même après clôture, ainsi que le pointage et la transmission des effectifs.
+L'onglet CDU permet de consulter le bilan et d'approuver ou rejeter les effectifs.
+Les comptes ADU et CDU conservent leur compagnie et leurs limites habituelles ;
+aucun droit supplémentaire n'est accordé aux autres rôles.
 
 Les réservations ne dépendent plus de la publication des plats : chaque date
 dispose des services **PDJ / DEJ / DIN**, même avec un plat non renseigné.

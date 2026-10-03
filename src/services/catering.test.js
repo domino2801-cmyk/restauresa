@@ -53,6 +53,7 @@ beforeAll(async () => {
       select id,'2026-10-01T10:29:59Z' from public.reservations;
   `)
   await db.exec(migration('20261003010000_catering_overview.sql'))
+  await db.exec(migration('20261003020000_catering_quarter_hours.sql'))
   historicalTime = (await db.query('select attended_at from public.reservations')).rows[0].attended_at
 }, 30000)
 afterAll(async () => { await db?.close() })
@@ -87,11 +88,16 @@ async function seed(userId, attended, time = null, status = 'reserved') {
 }
 
 it('appelle uniquement la RPC agrégée et remonte les erreurs', async () => {
-  rpc.mockResolvedValueOnce({ data: { services: [], half_hours: [] }, error: null })
-  expect(await fetchCateringOverview('2026-10-01', '2026-10-07')).toEqual({ services: [], half_hours: [] })
+  rpc.mockResolvedValueOnce({ data: { services: [], half_hours: [], quarter_hours: [] }, error: null })
+  expect(await fetchCateringOverview('2026-10-01', '2026-10-07')).toEqual({ services: [], half_hours: [], quarter_hours: [] })
   expect(rpc).toHaveBeenCalledWith('get_catering_overview', { from_date: '2026-10-01', to_date: '2026-10-07' })
   rpc.mockResolvedValueOnce({ error: new Error('Access denied') })
   await expect(fetchCateringOverview('2026-10-01', '2026-10-07')).rejects.toThrow('Access denied')
+})
+
+it('signale une migration manquante au lieu de présenter des zéros trompeurs', async () => {
+  rpc.mockResolvedValueOnce({ data: { services: [], half_hours: [] }, error: null })
+  await expect(fetchCateringOverview('2026-10-01', '2026-10-07')).rejects.toThrow('Appliquez la migration')
 })
 
 it('reprend les heures réelles des scans QR historiques', () => {
@@ -110,6 +116,10 @@ it('agrège toutes les compagnies sans exposer les personnes et sépare 12:29 et
     { day: '2026-10-01', service: 'dejeuner', slot: '12:00', passed: 1 },
     { day: '2026-10-01', service: 'dejeuner', slot: '12:30', passed: 1 },
   ])
+  expect(result.quarter_hours).toEqual([
+    { day: '2026-10-01', service: 'dejeuner', slot: '12:15', passed: 1 },
+    { day: '2026-10-01', service: 'dejeuner', slot: '12:30', passed: 1 },
+  ])
   const raw = JSON.stringify(result)
   expect(raw).not.toContain(member)
   expect(raw).not.toContain('email')
@@ -126,8 +136,33 @@ it('sépare les horaires inconnus et tardifs, exclut les annulations et conserve
   const result = await client(catering, () => overview())
   expect(result.services[0]).toMatchObject({ reserved: 2, passed: 2, unknown_time: 1, other_day: 1 })
   expect(result.half_hours).toEqual([])
+  expect(result.quarter_hours).toEqual([])
   const next = await client(admin, () => overview('2026-10-02'))
-  expect(next).toEqual({ services: [], half_hours: [] })
+  expect(next).toEqual({ services: [], half_hours: [], quarter_hours: [] })
+})
+
+it.each([
+  ['petit_dejeuner', '06:44:59', '06:45:00', '06:30', '06:45'],
+  ['dejeuner', '11:44:59', '11:45:00', '11:30', '11:45'],
+  ['diner', '17:59:59', '18:00:00', '17:45', '18:00'],
+])('sépare les quarts d’heure à Paris pour %s en été et en hiver', async (service, before, after, first, second) => {
+  await db.query('update public.menus set service=$1 where id=$2', [service, menu])
+  const firstId = await seed(member, true, `2026-10-01T${before}+02:00`)
+  const secondId = await seed(other, true, `2026-10-01T${after}+02:00`)
+  const expected = (day) => [
+    { day, service, slot: first, passed: 1 },
+    { day, service, slot: second, passed: 1 },
+  ]
+  expect((await client(catering, () => overview())).quarter_hours).toEqual(expected('2026-10-01'))
+  await db.exec('alter table public.reservations disable trigger reservations_passage_time')
+  try {
+    await db.query("update public.menus set menu_date='2026-12-01' where id=$1", [menu])
+    await db.query('update public.reservations set attended_at=$1 where id=$2', [`2026-12-01T${before}+01:00`, firstId])
+    await db.query('update public.reservations set attended_at=$1 where id=$2', [`2026-12-01T${after}+01:00`, secondId])
+  } finally {
+    await db.exec('alter table public.reservations enable trigger reservations_passage_time')
+  }
+  expect((await client(catering, () => overview('2026-12-01'))).quarter_hours).toEqual(expected('2026-12-01'))
 })
 
 it.each(['user', 'adu', 'cdu'])('refuse les agrégats au rôle %s', async (role) => {

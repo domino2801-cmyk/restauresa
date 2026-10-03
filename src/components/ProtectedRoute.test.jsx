@@ -20,10 +20,10 @@ function renderAt(path, auth) {
             <Route element={<ProtectedRoute roles={['admin']} />}>
               <Route path="/admin" element={<p>admin</p>} />
             </Route>
-            <Route element={<ProtectedRoute roles={['adu']} />}>
+            <Route element={<ProtectedRoute roles={['adu', 'admin']} />}>
               <Route path="/adu" element={<p>adu</p>} />
             </Route>
-            <Route element={<ProtectedRoute roles={['cdu']} />}>
+            <Route element={<ProtectedRoute roles={['cdu', 'admin']} />}>
               <Route path="/cdu" element={<p>cdu</p>} />
             </Route>
             <Route element={<ProtectedRoute roles={['restauration', 'admin']} />}>
@@ -85,5 +85,10 @@ describe('ProtectedRoute', () => {
   it('ne donne pas au rôle restauration les droits CDU', () => {
     renderAt('/cdu', { session, profile: profileFor('restauration') })
     expect(screen.getByText('restauration')).toBeInTheDocument()
+  })
+
+  it.each(['/adu', '/cdu'])('autorise l’administrateur à accéder à %s', (path) => {
+    renderAt(path, { session, profile: profileFor('admin') })
+    expect(screen.getByText(path.slice(1))).toBeInTheDocument()
   })
 })

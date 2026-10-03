@@ -4,7 +4,7 @@ import { WeekNavigator } from '../../components/WeekNavigator'
 import { Alert, Button, Card, EmptyState, PageHeader, Select, Spinner, StatCard } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
 import { SERVICES, SERVICE_LABELS } from '../../lib/constants'
-import { halfHourAttendance, passagePercent } from '../../lib/catering'
+import { quarterHourAttendance, passagePercent } from '../../lib/catering'
 import { addDays, formatDayLabel, startOfWeek, toISODate, weekDays } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { fetchCateringOverview } from '../../services/catering'
@@ -29,7 +29,11 @@ export default function CateringDashboardPage() {
     return { day, reserved: row?.reserved ?? 0, passed: row?.passed ?? 0, unchecked: row?.unchecked ?? 0 }
   }), [data, days, service])
   const selected = data?.services.find((row) => row.day === days[dayIndex] && row.service === service)
-  const slots = halfHourAttendance(data?.half_hours ?? [], days[dayIndex], service)
+  const slots = quarterHourAttendance(data?.quarter_hours ?? [], days[dayIndex], service)
+  const outsideHours = (data?.quarter_hours ?? [])
+    .filter((slot) => slot.day === days[dayIndex] && slot.service === service
+      && !slots.some((visible) => visible.slot === slot.slot))
+    .reduce((total, slot) => total + slot.passed, 0)
 
   return (
     <>
@@ -78,9 +82,9 @@ export default function CateringDashboardPage() {
               </table>
             </div>
           </Card>
-          <Card title="Fréquentation par tranche de 30 minutes">
+          <Card title="Fréquentation par tranche de 15 minutes">
             <p className="mb-3 text-sm text-steel-600">
-              {formatDayLabel(days[dayIndex])} — {SERVICE_LABELS[service]}. Heure de Paris.
+              {formatDayLabel(days[dayIndex])} — {SERVICE_LABELS[service]} : {slots[0].slot} à {slots.at(-1).end}. Heure de Paris.
               Les passages QR utilisent l'heure du scan ; les pointages ADU utilisent l'heure de saisie.
               Ces derniers ne permettent pas de connaître l'heure réelle d'arrivée.
             </p>
@@ -89,14 +93,19 @@ export default function CateringDashboardPage() {
                 ? `${selected.unknown_time} passage(s) sans heure connue et ${selected.other_day} pointage(s) saisis un autre jour : inclus dans le pourcentage, exclus du graphique horaire.`
                 : null}
             </Alert>
+            <Alert tone="warning">
+              {outsideHours > 0
+                ? `${outsideHours} passage(s) hors horaires du service : inclus dans le pourcentage, exclus du graphique horaire.`
+                : null}
+            </Alert>
             {(selected?.passed ?? 0) === 0 ? <EmptyState>Aucun passage pointé pour ce service.</EmptyState> : (
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={slots}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e6e8e3" />
-                    <XAxis dataKey="slot" tick={{ fontSize: 12 }} interval={3} />
+                    <XAxis dataKey="slot" tick={{ fontSize: 12 }} interval={0} />
                     <YAxis allowDecimals={false} />
-                    <Tooltip />
+                    <Tooltip labelFormatter={(label) => `${label} – ${slots.find((slot) => slot.slot === label)?.end}`} />
                     <Bar dataKey="passed" name="Passages" fill="#4b5320" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -105,7 +114,7 @@ export default function CateringDashboardPage() {
             <details className="mt-3">
               <summary className="cursor-pointer text-sm font-semibold">Voir les chiffres par tranche</summary>
               <div className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                {slots.map((slot) => <p key={slot.slot}>{slot.slot} : {slot.passed} passage(s)</p>)}
+                {slots.map((slot) => <p key={slot.slot}>{slot.slot} – {slot.end} : {slot.passed} passage(s)</p>)}
               </div>
             </details>
           </Card>

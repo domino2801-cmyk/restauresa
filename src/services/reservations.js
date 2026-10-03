@@ -80,7 +80,8 @@ export async function fetchHeadcounts(companyId, menuIds) {
 /** Soumission de l'effectif d'un menu aux cuisines (ADU). */
 export async function submitHeadcount({ companyId, menuId, reservedCount, totalMembers }) {
   const { error } = await supabase.from('headcount_validations').upsert(
-    { company_id: companyId, menu_id: menuId, reserved_count: reservedCount, total_members: totalMembers },
+    { company_id: companyId, menu_id: menuId, reserved_count: reservedCount, total_members: totalMembers,
+      status: 'submitted', reviewed_at: null, reviewed_by: null, comment: null },
     { onConflict: 'company_id,menu_id' },
   )
   if (error) {
