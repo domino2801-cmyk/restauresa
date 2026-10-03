@@ -54,6 +54,7 @@ beforeAll(async () => {
   `)
   await db.exec(migration('20261003010000_catering_overview.sql'))
   await db.exec(migration('20261003020000_catering_quarter_hours.sql'))
+  await db.exec(migration('20261003030000_admin_reservation_insert.sql'))
   historicalTime = (await db.query('select attended_at from public.reservations')).rows[0].attended_at
 }, 30000)
 afterAll(async () => { await db?.close() })
@@ -159,13 +160,43 @@ it('enchaîne réservation militaire, transmission ADU, rejet puis approbation C
   expect(adminDecision.rows).toEqual([{ status: 'rejected', comment: 'Revue administrateur' }])
 })
 
-it('reproduit le blocage actuel des réservations administrateur pour un autre personnel', async () => {
+it('permet à l’administrateur activé de réserver, annuler et réactiver pour un autre personnel après clôture', async () => {
   await db.exec('grant insert on public.reservations to authenticated')
-  await expect(client(admin, () => db.query(
-    "insert into public.reservations(user_id,menu_id,status) values($1,$2,'reserved') on conflict(user_id,menu_id) do update set status=excluded.status",
+  let reservationId
+  for (const status of ['reserved', 'cancelled', 'reserved']) {
+    const result = await client(admin, () => db.query(
+      'insert into public.reservations(user_id,menu_id,status) values($1,$2,$3) on conflict(user_id,menu_id) do update set status=excluded.status returning id,status',
+      [member, menu, status],
+    ))
+    expect(result.rows).toHaveLength(1)
+    expect(result.rows[0].status).toBe(status)
+    if (reservationId) expect(result.rows[0].id).toBe(reservationId)
+    reservationId = result.rows[0].id
+  }
+  expect((await client(admin, () => overview())).services[0]).toMatchObject({ reserved: 1 })
+})
+
+it.each(['user', 'adu', 'cdu', 'restauration'])('n’autorise pas le rôle %s à insérer directement pour un autre personnel', async (role) => {
+  await db.exec('grant insert on public.reservations to authenticated')
+  await db.query('update public.profiles set role=$1 where id=$2', [role, catering])
+  await db.exec('update public.menus set menu_date=current_date+21')
+  await expect(client(catering, () => db.query(
+    "insert into public.reservations(user_id,menu_id,status) values($1,$2,'reserved')",
     [member, menu],
   ))).rejects.toThrow(/row-level security/)
-  expect((await db.query('select count(*)::int as count from public.reservations')).rows[0].count).toBe(0)
+})
+
+it('refuse l’insertion pour un autre personnel à un administrateur désactivé', async () => {
+  await db.exec('grant insert on public.reservations to authenticated')
+  await db.query('update public.profiles set is_validated=false where id=$1', [admin])
+  try {
+    await expect(client(admin, () => db.query(
+      "insert into public.reservations(user_id,menu_id,status) values($1,$2,'reserved')",
+      [member, menu],
+    ))).rejects.toThrow(/row-level security/)
+  } finally {
+    await db.query('update public.profiles set is_validated=true where id=$1', [admin])
+  }
 })
 
 it('agrège toutes les compagnies sans exposer les personnes et sépare 12:29 et 12:30 à Paris', async () => {

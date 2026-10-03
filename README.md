@@ -96,6 +96,10 @@ existants, même après clôture, ainsi que le pointage et la transmission des e
 L'onglet CDU permet de consulter le bilan et d'approuver ou rejeter les effectifs.
 Les comptes ADU et CDU conservent leur compagnie et leurs limites habituelles ;
 aucun droit supplémentaire n'est accordé aux autres rôles.
+Appliquer `20261003030000_admin_reservation_insert.sql` pour permettre la création
+de réservations pour d'autres personnels depuis l'onglet ADU administrateur.
+Cette politique d'insertion est réservée aux administrateurs activés ; elle ne
+modifie ni les échéances ni les accès des militaires, ADU, CDU ou de la restauration.
 
 Les réservations ne dépendent plus de la publication des plats : chaque date
 dispose des services **PDJ / DEJ / DIN**, même avec un plat non renseigné.
