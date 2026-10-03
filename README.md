@@ -194,6 +194,8 @@ base de données et l'authentification. Suivez les étapes dans l'ordre :
    *Confirm signup* avec `{{ .Token }}`, et utilisez
    `https://domino2801-cmyk.github.io/restauresa/` comme *Site URL*. Ajoutez
    `https://domino2801-cmyk.github.io/restauresa/reset-password` aux *Redirect URLs*.
+   Les liens de récupération demandés depuis `localhost` renvoient aussi vers le site
+   publié, afin qu'ils restent utilisables après l'arrêt du serveur local.
    Configurez également un serveur SMTP personnalisé pour la production. Les détails
    figurent dans [Configuration Supabase](#configuration-supabase).
 4. **Déployer l'Edge Function** de connexion par nom :

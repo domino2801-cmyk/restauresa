@@ -10,11 +10,6 @@ import { formatOrganizationName } from '../../lib/organization'
 import { deleteUserAccount, fetchProfiles, updateProfile } from '../../services/profiles'
 
 const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
-const FILTERS = [
-  { value: 'all', label: 'Tous' },
-  { value: 'pending', label: 'En attente de validation' },
-  { value: 'validated', label: 'Validés' },
-]
 
 /** Ligne éditable d'un utilisateur. */
 function UserRow({ user, org, isSelf, onSaved }) {
@@ -104,19 +99,16 @@ export default function UsersPage() {
   const { org, loading: orgLoading } = useOrganization()
   const { data: users, error, loading, reload } = useAsync(fetchProfiles)
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all')
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     return (users ?? []).filter((u) => {
-      if (filter === 'pending' && u.is_validated) return false
-      if (filter === 'validated' && !u.is_validated) return false
       if (!term) return true
       return [u.full_name, u.email, u.company?.name, u.section?.name]
         .map((value) => formatOrganizationName(value ?? ''))
         .some((value) => value.toLowerCase().includes(term))
     })
-  }, [users, search, filter])
+  }, [users, search])
 
   const pendingCount = (users ?? []).filter((u) => !u.is_validated).length
 
@@ -128,14 +120,13 @@ export default function UsersPage() {
         Les rôles ADU, CDU et administrateur restent attribués uniquement par un administrateur.
       </Alert>
       <Card>
-        <div className="mb-2 grid gap-3 sm:grid-cols-[1fr_16rem]">
+        <div className="mb-2">
           <Input
             aria-label="Rechercher"
             placeholder="Rechercher un nom, un email, une unité…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Select aria-label="Filtre" value={filter} options={FILTERS} onChange={(e) => setFilter(e.target.value)} />
         </div>
         <Alert tone="error">{errorMessage(error)}</Alert>
         {(loading && !users) || orgLoading ? (

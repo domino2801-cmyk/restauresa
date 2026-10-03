@@ -8,7 +8,10 @@ sql_paths = ["./seed.sql"]
 
 [auth]
 site_url = "http://localhost:5173"
-additional_redirect_urls = ["http://localhost:5173/reset-password"]
+additional_redirect_urls = [
+  "http://localhost:5173/reset-password",
+  "https://domino2801-cmyk.github.io/restauresa/reset-password"
+]
 
 [auth.email]
 enable_confirmations = true

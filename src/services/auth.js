@@ -6,6 +6,8 @@ import { isEmail } from '../lib/validation'
 
 export { isEmail }
 
+const PRODUCTION_APP_URL = 'https://domino2801-cmyk.github.io/restauresa/'
+
 /**
  * Inscription : crée le compte et déclenche l'envoi du code OTP par email.
  * Les métadonnées servent au trigger SQL `handle_new_user` pour créer le profil.
@@ -71,8 +73,11 @@ export async function signIn(identifier, password) {
 
 /** Envoie l'email de réinitialisation du mot de passe. */
 export async function requestPasswordReset(email) {
+  const appUrl = window.location.hostname === 'localhost'
+    ? PRODUCTION_APP_URL
+    : `${window.location.origin}${import.meta.env.BASE_URL}`
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}reset-password`,
+    redirectTo: `${appUrl}reset-password`,
   })
   if (error) throw error
 }
