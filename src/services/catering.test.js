@@ -104,6 +104,70 @@ it('reprend les heures réelles des scans QR historiques', () => {
   expect(new Date(historicalTime).toISOString()).toBe('2026-10-01T10:29:59.000Z')
 })
 
+it('enchaîne réservation militaire, transmission ADU, rejet puis approbation CDU et consultation restauration', async () => {
+  const cdu = '00000000-0000-0000-0000-000000000009'
+  await db.exec(`
+    grant insert on public.reservations to authenticated;
+    grant select, insert, update on public.headcount_validations to authenticated;
+    insert into auth.users(id,email,email_confirmed_at) values ('${cdu}','cdu@test.fr',now());
+    update public.profiles set role='cdu',company_id='${company1}',regiment_id='${company1}' where id='${cdu}';
+    update public.menus set menu_date=current_date+21 where id='${menu}';
+  `)
+  const day = (await db.query("select to_char(menu_date,'YYYY-MM-DD') as day from public.menus where id=$1", [menu])).rows[0].day
+  await client(member, () => db.query(
+    "insert into public.reservations(user_id,menu_id,status) values($1,$2,'reserved')", [member, menu],
+  ))
+  await client(adu, () => db.query(
+    'insert into public.headcount_validations(company_id,menu_id,reserved_count,total_members) values($1,$2,1,1)',
+    [company1, menu],
+  ))
+  const before = await client(catering, () => overview(day))
+  expect(before.services[0]).toMatchObject({ reserved: 1, passed: 0, unchecked: 1 })
+  await client(cdu, () => db.query(
+    "update public.headcount_validations set status='rejected',comment='Effectif à vérifier' where company_id=$1 and menu_id=$2",
+    [company1, menu],
+  ))
+  const rejected = await client(adu, () => db.query('select status,comment,reviewed_by from public.headcount_validations'))
+  expect(rejected.rows).toEqual([{ status: 'rejected', comment: 'Effectif à vérifier', reviewed_by: cdu }])
+  await client(adu, () => db.query(
+    'update public.headcount_validations set reserved_count=1,total_members=1 where company_id=$1 and menu_id=$2',
+    [company1, menu],
+  ))
+  const submitted = await client(cdu, () => db.query('select status,comment,reviewed_by from public.headcount_validations'))
+  expect(submitted.rows).toEqual([{ status: 'submitted', comment: null, reviewed_by: null }])
+  await client(cdu, () => db.query(
+    "update public.headcount_validations set status='approved' where company_id=$1 and menu_id=$2",
+    [company1, menu],
+  ))
+  const approved = await client(adu, () => db.query('select status,reviewed_by from public.headcount_validations'))
+  expect(approved.rows).toEqual([{ status: 'approved', reviewed_by: cdu }])
+  const blocked = await client(adu, () => db.query(
+    'update public.headcount_validations set reserved_count=2 returning id',
+  ))
+  expect(blocked.rows).toEqual([])
+  expect(await client(catering, () => overview(day))).toEqual(before)
+  await client(adu, () => db.query(
+    'update public.reservations set attended=true where user_id=$1 and menu_id=$2', [member, menu],
+  ))
+  expect((await client(catering, () => overview(day))).services[0])
+    .toMatchObject({ reserved: 1, passed: 1, unchecked: 0 })
+  await client(admin, () => db.query(
+    "update public.headcount_validations set status='rejected',comment='Revue administrateur' where company_id=$1",
+    [company1],
+  ))
+  const adminDecision = await client(adu, () => db.query('select status,comment from public.headcount_validations'))
+  expect(adminDecision.rows).toEqual([{ status: 'rejected', comment: 'Revue administrateur' }])
+})
+
+it('reproduit le blocage actuel des réservations administrateur pour un autre personnel', async () => {
+  await db.exec('grant insert on public.reservations to authenticated')
+  await expect(client(admin, () => db.query(
+    "insert into public.reservations(user_id,menu_id,status) values($1,$2,'reserved') on conflict(user_id,menu_id) do update set status=excluded.status",
+    [member, menu],
+  ))).rejects.toThrow(/row-level security/)
+  expect((await db.query('select count(*)::int as count from public.reservations')).rows[0].count).toBe(0)
+})
+
 it('agrège toutes les compagnies sans exposer les personnes et sépare 12:29 et 12:30 à Paris', async () => {
   await seed(member, true, '2026-10-01T10:29:59Z')
   await seed(other, true, '2026-10-01T10:30:00Z')
