@@ -78,6 +78,62 @@ export function countByDay(days, reservations) {
   return days.map((day) => ({ day, count: counts[day] }))
 }
 
+/** Bilan des repas réservés : seuls les absents explicitement pointés sont valorisés. */
+export function companyAttendanceByDay(days, menus, reservations, today) {
+  const menuById = new Map(menus.map((menu) => [menu.id, menu]))
+  const rows = new Map(days.map((day) => [day, {
+    day, planned: 0, attended: 0, absent: 0, unchecked: 0, loss: 0, unpriced: 0, future: day > today,
+  }]))
+  for (const reservation of activeReservations(reservations)) {
+    const menu = menuById.get(reservation.menu_id)
+    const row = rows.get(menu?.menu_date)
+    if (!row) continue
+    row.planned += 1
+    if (row.future) continue
+    if (reservation.attended === true) {
+      row.attended += 1
+    } else if (reservation.attended === false) {
+      row.absent += 1
+      const price = menu.meal?.unit_price
+      if (price === null || price === undefined || price === '' || !Number.isFinite(Number(price))) {
+        row.unpriced += 1
+      } else {
+        row.loss += Number(price)
+      }
+    } else {
+      row.unchecked += 1
+    }
+  }
+  return [...rows.values()]
+}
+
+export function attendanceTotals(rows) {
+  return rows.reduce((totals, row) => ({
+    planned: totals.planned + row.planned,
+    attended: totals.attended + row.attended,
+    absent: totals.absent + row.absent,
+    unchecked: totals.unchecked + row.unchecked,
+    loss: totals.loss + row.loss,
+    unpriced: totals.unpriced + row.unpriced,
+  }), { planned: 0, attended: 0, absent: 0, unchecked: 0, loss: 0, unpriced: 0 })
+}
+
+/** Même calcul que le bilan quotidien, classé par absences décroissantes. */
+export function companyAttendanceBySection(days, menus, reservations, members, today) {
+  return groupBySection(members, new Set()).map((group) => {
+    const memberIds = new Set(group.members.map((member) => member.id))
+    const totals = attendanceTotals(companyAttendanceByDay(
+      days, menus, reservations.filter((reservation) => memberIds.has(reservation.user_id)), today,
+    ))
+    const checked = totals.attended + totals.absent
+    return {
+      section: group.section,
+      ...totals,
+      absenceRate: checked ? percent(totals.absent, checked) : null,
+    }
+  }).sort((a, b) => b.absent - a.absent || compareSectionNames(a.section, b.section))
+}
+
 /**
  * Trie une liste de membres annotés (`hasReserved`, `section`) selon la clé :
  * 'section' (puis nom), 'name', ou 'status' (réservés d'abord, puis section et nom).

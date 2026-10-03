@@ -32,7 +32,18 @@ Appliquer cette migration Supabase avant publication des textes de l'interface.
 | --- | --- | --- |
 | **Administrateur** (`admin`) | `/admin` | Vue d'ensemble analytique (KPIs, réservations par jour, taux par compagnie, coût estimé) ; gestion des **utilisateurs** (validation, rôle, régiment/compagnie/section, suppression du compte via la fonction `admin_delete_user`) ; gestion de l'**organisation** ; **catalogue des repas** ; **menus de la semaine limités au déjeuner**. |
 | **ADU** – Adjudant de compagnie (`adu`) | `/adu` | Qui a réservé dans sa compagnie (par date et service), **triable par section / nom / statut**, filtre réservés / non réservés, **réservation / annulation pour tous les personnels de sa CIE jusqu'à J-2 à 14 h**, synthèse par section, pointage de présence, **export CSV** et **validation de l'effectif** transmis aux cuisines. |
-| **CDU** – Commandant de compagnie (`cdu`) | `/cdu` | KPIs (taux de réservation, **taux de présence**, coût estimé, effectifs à approuver), graphiques par jour et par section, **revue des effectifs** (approbation / rejet motivé). |
+| **CDU** – Commandant de compagnie (`cdu`) | `/cdu` | KPIs (taux de réservation, **taux de présence**, coût estimé, effectifs à approuver), **bilan hebdomadaire par jour** (effectif prévu, passé, absences pointées, pointages manquants, perte financière estimée), graphiques par jour et par section, **revue des effectifs** (approbation / rejet motivé). |
+
+Le bilan CDU porte uniquement sur sa compagnie et compte un passage par repas réservé.
+La perte financière estimée additionne le prix des repas réservés dont l'absence a été
+explicitement pointée. Les annulations, les jours futurs et les pointages manquants sont
+exclus. Les absences sans prix sont signalées comme une estimation partielle ; les
+chiffres du jour en cours (heure de Paris) restent provisoires.
+La vue par section classe les sections par nombre de repas non consommés décroissant,
+avec les consommations, pointages manquants et pertes estimées. Le taux de
+non-consommation se calcule sur les seuls repas pointés (présences + absences) ;
+sans pointage, il est indiqué comme non disponible. Le rattachement est celui de la
+section actuelle du personnel ; les personnels non affectés figurent sous « Sans section ».
 | **Militaire** (`user`) | `/reservations` | Réservation / annulation des repas du lundi au vendredi, avec une case **« Week-end »** pour afficher samedi et dimanche. Masquer le week-end conserve les réservations existantes et leur inclusion dans le total hebdomadaire. Accessible aussi aux autres rôles via « Mes repas ». |
 
 Les **DEJ du lundi au jeudi** sont précochés avant la

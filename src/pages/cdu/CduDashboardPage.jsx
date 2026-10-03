@@ -17,7 +17,7 @@ import { HEADCOUNT_STATUS_LABELS, SERVICES, SERVICE_LABELS } from '../../lib/con
 import { addDays, formatDayLabel, startOfWeek, toISODate, weekDays } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { formatOrganizationName } from '../../lib/organization'
-import { activeReservations, attendanceRate, groupBySection, percent, reservationRate } from '../../lib/stats'
+import { activeReservations, attendanceRate, attendanceTotals, companyAttendanceByDay, companyAttendanceBySection, groupBySection, percent, reservationRate } from '../../lib/stats'
 import { fetchMenus } from '../../services/meals'
 import { fetchCompanyMembers } from '../../services/profiles'
 import { fetchHeadcounts, fetchReservationsForMenus, reviewHeadcount } from '../../services/reservations'
@@ -52,6 +52,7 @@ export default function CduDashboardPage() {
       menus,
       reservations: reservations.filter((r) => memberIds.has(r.user_id)),
       headcounts,
+      today: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Paris' }).format(new Date()),
     }
   }, [companyId, monday])
 
@@ -59,17 +60,16 @@ export default function CduDashboardPage() {
 
   const kpis = useMemo(() => {
     if (!data) return null
-    const menuById = new Map(data.menus.map((m) => [m.id, m]))
     const active = activeReservations(data.reservations)
 
-    const perDay = days.map((day) => {
-      const dayReservations = active.filter((r) => menuById.get(r.menu_id)?.menu_date === day)
-      return {
-        label: formatDayLabel(day),
-        Réservations: dayReservations.length,
-        Présents: dayReservations.filter((r) => r.attended).length,
-      }
-    })
+    const dailyAttendance = companyAttendanceByDay(days, data.menus, data.reservations, data.today)
+    const weeklyTotals = attendanceTotals(dailyAttendance)
+    const sectionAttendance = companyAttendanceBySection(days, data.menus, data.reservations, data.members, data.today)
+    const perDay = dailyAttendance.map((row) => ({
+      label: formatDayLabel(row.day),
+      'Effectif prévu': row.planned,
+      'Effectif passé': row.future ? null : row.attended,
+    }))
 
     const sectionRates = groupBySection(data.members, new Set(active.map((r) => r.user_id))).map((s) => {
       const ids = new Set(s.members.map((m) => m.id))
@@ -95,6 +95,9 @@ export default function CduDashboardPage() {
       unpriced: review.reduce((sum, r) => sum + r.unpriced, 0),
       pending: data.headcounts.filter((h) => h.status === 'submitted').length,
       perDay,
+      dailyAttendance,
+      attendanceTotals: weeklyTotals,
+      sectionAttendance,
       sectionRates,
       review,
     }
@@ -137,16 +140,114 @@ export default function CduDashboardPage() {
       ) : (
         kpis && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               <StatCard label="Effectif" value={data.members.length} />
               <StatCard label="Taux de réservation" value={`${kpis.reservationRate} %`} tone="olive" hint="Sur la semaine" />
               <StatCard label="Taux de présence" value={`${kpis.attendanceRate} %`} tone="khaki" hint="Repas pointés" />
               <StatCard label="Coût estimé" value={euro(kpis.totalCost)} hint={kpis.unpriced ? `Partiel : ${kpis.unpriced} repas sans plat publié` : 'Sur la semaine'} />
               <StatCard label="À approuver" value={kpis.pending} tone={kpis.pending ? 'red' : 'olive'} />
+              <StatCard
+                label="Perte financière estimée"
+                value={euro(kpis.attendanceTotals.loss)}
+                tone="red"
+                hint={kpis.attendanceTotals.unpriced
+                  ? `Partiel : ${kpis.attendanceTotals.unpriced} absences sans prix`
+                  : 'Absences pointées, hors repas futurs'}
+              />
             </div>
 
+            <Card title="Bilan quotidien de la compagnie">
+              <p className="mb-3 text-sm text-steel-600">
+                Effectif prévu : repas réservés. Effectif passé : présences pointées.
+                Perte estimée : absences pointées × prix du repas, hors jours futurs.
+                Les pointages manquants sont exclus de la perte ; le jour en cours reste provisoire.
+                Un personnel réservant plusieurs services est compté une fois par repas.
+              </p>
+              {kpis.attendanceTotals.unpriced > 0 && (
+                <Alert tone="warning">
+                  Estimation partielle : {kpis.attendanceTotals.unpriced} absence(s) sans prix de repas renseigné.
+                </Alert>
+              )}
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="text-left text-xs tracking-wider text-steel-600 uppercase">
+                    <tr>
+                      {['Jour', 'Effectif prévu', 'Effectif passé', 'Absences pointées', 'Pointages manquants', 'Perte estimée'].map((label) => (
+                        <th key={label} className="py-2 pr-4">{label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-steel-100">
+                    {kpis.dailyAttendance.map((row) => (
+                      <tr key={row.day}>
+                        <td className="py-2 pr-4 whitespace-nowrap">{formatDayLabel(row.day)}</td>
+                        <td className="py-2 pr-4">{row.planned}</td>
+                        <td className="py-2 pr-4">{row.future ? 'À venir' : row.attended}</td>
+                        <td className="py-2 pr-4">{row.future ? '—' : row.absent}</td>
+                        <td className="py-2 pr-4">{row.future ? '—' : row.unchecked}</td>
+                        <td className="py-2 pr-4 whitespace-nowrap">
+                          {row.future ? '—' : `${euro(row.loss)}${row.unpriced ? ' (partiel)' : ''}`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t border-steel-200 font-semibold">
+                    <tr>
+                      <th className="py-2 pr-4 text-left">Total semaine</th>
+                      <td className="py-2 pr-4">{kpis.attendanceTotals.planned}</td>
+                      <td className="py-2 pr-4">{kpis.attendanceTotals.attended}</td>
+                      <td className="py-2 pr-4">{kpis.attendanceTotals.absent}</td>
+                      <td className="py-2 pr-4">{kpis.attendanceTotals.unchecked}</td>
+                      <td className="py-2 pr-4">{euro(kpis.attendanceTotals.loss)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Card>
+
+            <Card title="Repas non consommés par section">
+              <p className="mb-3 text-sm text-steel-600">
+                Bilan de la semaine sélectionnée, classé par nombre de repas non consommés décroissant.
+                Seules les absences explicitement pointées sont comptées, hors jours futurs.
+                Le taux de non-consommation porte sur les repas pointés (présences et absences).
+                Les réservations incluent toute la semaine ; les pointages manquants restent exclus des pertes.
+                Le rattachement utilisé est la section actuelle du personnel.
+              </p>
+              {kpis.sectionAttendance.length === 0 ? (
+                <EmptyState>Aucun membre.</EmptyState>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table aria-label="Bilan des repas par section" className="min-w-full text-sm">
+                    <thead className="text-left text-xs tracking-wider text-steel-600 uppercase">
+                      <tr>
+                        {['Section', 'Réservés (semaine)', 'Consommés', 'Non consommés', 'Taux de non-consommation', 'Non pointés', 'Perte estimée'].map((label) => (
+                          <th key={label} className="py-2 pr-4">{label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-steel-100">
+                      {kpis.sectionAttendance.map((row) => (
+                        <tr key={row.section}>
+                          <th scope="row" className="py-2 pr-4 text-left font-medium">{formatOrganizationName(row.section)}</th>
+                          <td className="py-2 pr-4">{row.planned}</td>
+                          <td className="py-2 pr-4">{row.attended}</td>
+                          <td className="py-2 pr-4">{row.absent}</td>
+                          <td className="py-2 pr-4">{row.absenceRate === null ? 'Non disponible' : `${row.absenceRate} %`}</td>
+                          <td className="py-2 pr-4">{row.unchecked}</td>
+                          <td className="py-2 pr-4 whitespace-nowrap">
+                            {euro(row.loss)}
+                            {row.unpriced > 0 && <span className="block text-xs text-steel-600">Partiel : {row.unpriced} absence(s) sans prix</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+
             <div className="grid gap-4 lg:grid-cols-2">
-              <Card title="Réservations et présence par jour">
+              <Card title="Effectifs prévus et passés par jour">
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={kpis.perDay}>
@@ -155,8 +256,8 @@ export default function CduDashboardPage() {
                       <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="Réservations" fill="#0b1f3a" radius={[3, 3, 0, 0]} />
-                      <Bar dataKey="Présents" fill="#4b5320" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Effectif prévu" fill="#0b1f3a" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Effectif passé" fill="#4b5320" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
