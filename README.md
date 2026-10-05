@@ -72,12 +72,12 @@ les tranches de 15 minutes. La RPC conserve `half_hours` pour les anciens client
 et ajoute `quarter_hours` ; le nouveau frontend signale explicitement une migration
 manquante plutôt que d'afficher des chiffres horaires incorrects.
 
-Les **DEJ du lundi au jeudi** sont précochés avant la
-clôture, sauf si un choix a déjà été enregistré (notamment une annulation).
-Ces présélections et toutes les modifications de cases restent en brouillon jusqu'au
+Les repas, y compris les **DEJ du lundi au jeudi**, sont décochés par défaut,
+sauf si une réservation a déjà été enregistrée ; les annulations restent décochées.
+Toutes les modifications de cases restent en brouillon jusqu'au
 clic sur **« Confirmer mes réservations »**. Les choix sont enregistrés ensemble ;
 un DEJ décoché explicitement reste décoché après rechargement. Le total hebdomadaire
-ne compte que les réservations enregistrées, pas les présélections.
+ne compte que les réservations enregistrées, pas les choix non confirmés.
 Après confirmation réussie, le rappel « Confirmez vos repas avant le… » est
 remplacé par **« Réservations effectuées »**. Ce statut reste visible après
 rechargement lorsque les choix affichés sont enregistrés. Une modification non
@@ -145,7 +145,7 @@ RestauResa, téléchargeable et à afficher au mess. Chaque compte activé dispo
 du lecteur **Scanner mon passage** (caméra arrière, autorisation requise, HTTPS).
 Le client choisit PDJ / DEJ / DIN puis scanne le code. Le serveur ne pointe que
 sa propre réservation `reserved` du jour en **Europe/Paris**, et refuse un code
-incorrect, un repas non réservé/annulé ou un passage déjà validé. Les présélections
+incorrect, un repas non réservé/annulé ou un passage déjà validé. Les sélections
 non confirmées ne suffisent pas. Le pointage alimente les statistiques et le
 tableau ADU via `reservations.attended`. Le pointage manuel ADU reste disponible.
 La caméra est arrêtée après le scan, à la sortie de page ou en arrière-plan.
