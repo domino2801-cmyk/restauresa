@@ -64,18 +64,15 @@ export default function MyReservationsPage() {
 
   const reservedCount = (data?.reservations ?? []).filter((r) => r.status === 'reserved').length
   const ready = data?.weekKey === weekKey && !loading && !error
-  const defaultLunch = (menu) => menu.service === 'dejeuner' && days.slice(0, 4).includes(menu.menu_date)
   const isSelected = (menu) => {
     const reservation = reservationByMenu.get(menu.id)
     if (!bookingOpen) return reservation?.status === 'reserved'
-    return draft[menu.id] ?? (reservation
-      ? reservation.status === 'reserved'
-      : defaultLunch(menu))
+    return draft[menu.id] ?? (reservation?.status === 'reserved')
   }
   const changes = ready && bookingOpen ? data.menus
     .filter((menu) => {
       const reservation = reservationByMenu.get(menu.id)
-      return isSelected(menu) !== (reservation?.status === 'reserved') || (!reservation && defaultLunch(menu))
+      return isSelected(menu) !== (reservation?.status === 'reserved')
     })
     .map((menu) => ({ menuId: menu.id, reserved: isSelected(menu) })) : []
   const reservationsDone = ready && changes.length === 0 && (confirmed || data.reservations.length > 0)
@@ -216,7 +213,6 @@ export default function MyReservationsPage() {
             </table>
           </div>
           <p className="mt-3 text-xs text-steel-600">
-            Avant la clôture, les DEJ du lundi au jeudi sont précochés, même si les plats ne sont pas encore publiés.
             Cochez ou décochez vos repas, puis confirmez pour enregistrer vos réservations ou annulations.
           </p>
           <p className="mt-1 text-xs text-steel-600">
