@@ -4,7 +4,7 @@
 import { supabase } from '../lib/supabase'
 
 export async function fetchMeals({ activeOnly = false } = {}) {
-  let query = supabase.from('meals').select('id, name, description, category, unit_price, is_active').order('name')
+  let query = supabase.from('meals').select('id, name, description, category, unit_price, is_active, is_service').order('name')
   if (activeOnly) query = query.eq('is_active', true)
   const { data, error } = await query
   if (error) throw error
@@ -36,7 +36,7 @@ export async function deleteMeal(id) {
   }
 }
 
-/** Services entre deux dates ISO incluses, avec un plat publié facultatif. */
+/** Services entre deux dates ISO incluses, avec un repas de service par défaut. */
 export async function fetchMenus(from, to) {
   const { error: servicesError } = await supabase.rpc('ensure_meal_services', {
     from_date: from,
@@ -45,7 +45,8 @@ export async function fetchMenus(from, to) {
   if (servicesError) throw servicesError
   const { data, error } = await supabase
     .from('menus')
-    .select('id, menu_date, service, meal_id, meal:meals(id, name, description, category, unit_price)')
+    .select('id, menu_date, service, meal_id, meal:meals!inner(id, name, description, category, unit_price, is_active, is_service)')
+    .eq('meal.is_active', true)
     .gte('menu_date', from)
     .lte('menu_date', to)
     .order('menu_date')
@@ -53,7 +54,7 @@ export async function fetchMenus(from, to) {
   return data
 }
 
-/** Définit ou retire le plat sans supprimer le service ni ses réservations (admin). */
+/** Définit le plat ou rétablit le repas de service sans supprimer les réservations (admin). */
 export async function setMenu(menuDate, service, mealId) {
   const { error } = await supabase
     .from('menus')
