@@ -157,6 +157,19 @@ describe('réservation avec repas de service par défaut', () => {
     await expect(db.exec("insert into public.meals(name,is_service) values('Autre',true)")).rejects.toThrow(/unique/)
   })
 
+  it('verrouille les écritures avant les lignes de repas et de menus', async () => {
+    for (const table of ['meals', 'menus']) {
+      await db.exec('begin')
+      try {
+        await db.exec(`update public.${table} set id=id where false`)
+        const { rows } = await db.query("select count(*)::int as total from pg_locks where locktype='advisory' and granted")
+        expect(rows[0].total).toBe(1)
+      } finally {
+        await db.exec('rollback')
+      }
+    }
+  })
+
   describe('passage par QR établissement', () => {
     async function seedToday(status = 'reserved') {
       const { rows } = await db.query(`

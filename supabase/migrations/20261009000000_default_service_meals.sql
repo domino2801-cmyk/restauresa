@@ -12,6 +12,21 @@ insert into public.meals (name, is_service)
 select 'Repas de service', true
 where not exists (select 1 from public.meals where is_service);
 
+-- Take one transaction lock before either table's row locks, including upserts.
+create function public.serialize_meal_publication()
+returns trigger
+language plpgsql set search_path = ''
+as $$
+begin
+  perform pg_advisory_xact_lock(hashtext('restauresa'), hashtext('meal_publication'));
+  return null;
+end;
+$$;
+create trigger serialize_meal_publication before insert or update or delete on public.meals
+for each statement execute function public.serialize_meal_publication();
+create trigger serialize_meal_publication before insert or update or delete on public.menus
+for each statement execute function public.serialize_meal_publication();
+
 create function public.protect_service_meal()
 returns trigger
 language plpgsql set search_path = ''
@@ -39,10 +54,9 @@ as $$
 declare
   available boolean;
 begin
-  -- Serialize publication with dish deactivation.
-  select is_active into available from public.meals where id = new.meal_id for share;
+  select is_active into available from public.meals where id = new.meal_id;
   if new.meal_id is null or available = false then
-    select id into new.meal_id from public.meals where is_service for share;
+    select id into new.meal_id from public.meals where is_service;
   end if;
   return new;
 end;
@@ -74,6 +88,7 @@ alter table public.menus alter column meal_id set not null;
 alter policy "meals_read" on public.meals using (is_active);
 
 revoke execute on function public.protect_service_meal() from public, anon, authenticated;
+revoke execute on function public.serialize_meal_publication() from public, anon, authenticated;
 revoke execute on function public.default_menu_meal() from public, anon, authenticated;
 revoke execute on function public.unpublish_inactive_meal() from public, anon, authenticated;
 
