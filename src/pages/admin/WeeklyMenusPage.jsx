@@ -60,20 +60,23 @@ export default function WeeklyMenusPage() {
         <Spinner />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {days.map((day) => (
-            <Card key={day} title={formatDayLabel(day, { weekday: 'long', day: 'numeric', month: 'short' })}>
-              <div className="space-y-3">
-                <Select
-                  label="Déjeuner"
-                  value={menuIndex.get(`${day}|dejeuner`)?.meal_id ?? ''}
-                  placeholder="Plat non publié"
-                  options={optionsFor(menuIndex.get(`${day}|dejeuner`)?.meal_id)}
-                  disabled={saving === day}
-                  onChange={(e) => change(day, e.target.value)}
-                />
-              </div>
-            </Card>
-          ))}
+          {days.map((day) => {
+            const menu = menuIndex.get(`${day}|dejeuner`)
+            return (
+              <Card key={day} title={formatDayLabel(day, { weekday: 'long', day: 'numeric', month: 'short' })}>
+                <div className="space-y-3">
+                  <Select
+                    label="Déjeuner"
+                    value={menu?.meal_id ?? ''}
+                    placeholder="Plat non publié"
+                    options={optionsFor(menu?.meal_id)}
+                    disabled={saving === day}
+                    onChange={(e) => change(day, e.target.value)}
+                  />
+                </div>
+              </Card>
+            )
+          })}
         </div>
       )}
     </>

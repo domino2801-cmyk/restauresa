@@ -50,7 +50,7 @@ export async function fetchMenus(from, to) {
     .lte('menu_date', to)
     .order('menu_date')
   if (error) throw error
-  return data
+  return data.filter((menu) => menu.meal_id)
 }
 
 /** Définit ou retire le plat sans supprimer le service ni ses réservations (admin). */

@@ -20,6 +20,10 @@ begin
   from generate_series(0, to_date - from_date) as days(day_offset)
   cross join unnest(enum_range(null::public.meal_service)) as services(meal_service)
   on conflict (menu_date, service) do nothing;
+
+  delete from public.menus
+  where meal_id is null
+    and menu_date between from_date and to_date;
 end;
 $$;
 
