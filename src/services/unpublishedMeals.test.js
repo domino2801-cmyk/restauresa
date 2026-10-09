@@ -6,6 +6,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 let db
 let fromDate
 let toDate
+let migratedMenus
+let migratedReservations
+let legacyMenus
+let legacyReservations
+let existingServiceMeal
+let migratedServiceMeals
 const user = '00000000-0000-0000-0000-000000000001'
 const member = '00000000-0000-0000-0000-000000000002'
 const outsider = '00000000-0000-0000-0000-000000000003'
@@ -18,6 +24,10 @@ const migrations = [
   '20261002030000_reservations_without_published_meals.sql',
   '20261002040000_qr_attendance.sql',
   '20261002050000_rotate_establishment_qr.sql',
+  '20261003000000_catering_role.sql',
+  '20261003010000_catering_overview.sql',
+  '20261003020000_catering_quarter_hours.sql',
+  '20261003030000_admin_reservation_insert.sql',
 ]
 
 beforeAll(async () => {
@@ -51,12 +61,34 @@ beforeAll(async () => {
   `)
   fromDate = rows[0].start
   toDate = rows[0].finish
+  await db.exec(`
+    insert into public.meals(name,is_active) values ('Plat inactif',false),('Plat publié',true);
+    insert into public.menus(menu_date,service,meal_id) values
+      (current_date+21,'petit_dejeuner',null),
+      (current_date+21,'dejeuner',(select id from public.meals where not is_active)),
+      (current_date+21,'diner',(select id from public.meals where is_active));
+    insert into public.reservations(user_id,menu_id)
+      select '${user}',id from public.menus;
+  `)
+  legacyMenus = (await db.query('select id,service,meal_id from public.menus order by service')).rows
+  legacyReservations = (await db.query('select * from public.reservations order by menu_id')).rows
+  existingServiceMeal = (await db.query(`
+    insert into public.meals(name,is_active,unit_price) values(' Repas de service ',false,4) returning id
+  `)).rows[0]
+  await db.exec(readFileSync(new URL('../../supabase/migrations/20261009000000_default_service_meals.sql', import.meta.url), 'utf8'))
+  migratedMenus = (await db.query(`
+    select m.id,m.service,m.meal_id,meal.is_service,meal.is_active
+    from public.menus m join public.meals meal on meal.id=m.meal_id order by m.service
+  `)).rows
+  migratedReservations = (await db.query('select * from public.reservations order by menu_id')).rows
+  migratedServiceMeals = (await db.query('select id,name,is_active,unit_price from public.meals where is_service')).rows
 }, 30000)
 afterAll(async () => { await db?.close() })
 beforeEach(async () => {
   await db.exec(`
     reset role; reset test.uid;
     truncate public.reservations, public.headcount_validations, public.menus, public.meals cascade;
+    insert into public.meals(name,is_service) values ('Repas de service',true);
     update public.profiles set is_validated=true,role='user' where id='${user}';
   `)
 })
@@ -69,11 +101,60 @@ async function asClient(action) {
 const ensure = (start = fromDate, end = toDate) =>
   db.query('select public.ensure_meal_services($1::date,$2::date)', [start, end])
 
-describe('réservation sans plat publié', () => {
-  it('crée 21 services sans plat pour une semaine et reste idempotent', async () => {
+describe('réservation avec repas de service par défaut', () => {
+  it('migre les plats absents ou inactifs sans supprimer les menus ou réservations', () => {
+    expect(migratedMenus.map(({ id }) => id)).toEqual(legacyMenus.map(({ id }) => id))
+    expect(migratedReservations).toEqual(legacyReservations)
+    expect(migratedMenus.every(({ is_active }) => is_active)).toBe(true)
+    expect(migratedMenus.filter(({ is_service }) => is_service)).toHaveLength(2)
+    const published = legacyMenus.find(({ service }) => service === 'diner')
+    expect(migratedMenus.find(({ service }) => service === 'diner').meal_id).toBe(published.meal_id)
+  })
+
+  it('réutilise un repas de service existant en conservant son coût', () => {
+    expect(migratedServiceMeals).toEqual([
+      { id: existingServiceMeal.id, name: 'Repas de service', is_active: true, unit_price: '4.00' },
+    ])
+  })
+
+  it('crée 21 services avec le repas par défaut pour une semaine et reste idempotent', async () => {
     await asClient(async () => { await ensure(); await ensure() })
     const { rows } = await db.query('select count(*)::int as total,count(meal_id)::int as dishes from public.menus')
-    expect(rows[0]).toEqual({ total: 21, dishes: 0 })
+    expect(rows[0]).toEqual({ total: 21, dishes: 21 })
+    const { rows: defaults } = await db.query(`
+      select count(*)::int as total from public.menus m join public.meals meal on meal.id=m.meal_id
+      where meal.is_service
+    `)
+    expect(defaults[0].total).toBe(21)
+  })
+
+  it('rétablit le défaut lors des écritures directes et de la désactivation d’un plat', async () => {
+    const { rows: meals } = await db.query("insert into public.meals(name) values('Plat') returning id")
+    await db.query("insert into public.menus(menu_date,service,meal_id) values($1,'dejeuner',$2)", [fromDate, meals[0].id])
+    const { rows: menus } = await db.query('select id from public.menus')
+    await db.query('insert into public.reservations(user_id,menu_id) values($1,$2)', [user, menus[0].id])
+    await db.query('update public.meals set is_active=false where id=$1', [meals[0].id])
+    await db.query("insert into public.menus(menu_date,service,meal_id) values($1,'diner',$2)", [fromDate, meals[0].id])
+    await db.query("insert into public.menus(menu_date,service) values($1,'petit_dejeuner')", [fromDate])
+    const { rows } = await db.query(`
+      select meal.is_service from public.menus m join public.meals meal on meal.id=m.meal_id
+    `)
+    expect(rows).toEqual([{ is_service: true }, { is_service: true }, { is_service: true }])
+    expect((await db.query('select menu_id from public.reservations')).rows).toEqual([{ menu_id: menus[0].id }])
+    await asClient(async () => {
+      const { rows: catalogue } = await db.query('select is_active from public.meals')
+      expect(catalogue).toEqual([{ is_active: true }])
+    })
+    await expect(db.query("update public.menus set meal_id='00000000-0000-0000-0000-000000000099'"))
+      .rejects.toThrow(/foreign key/)
+  })
+
+  it('protège le repas par défaut même sans menu associé', async () => {
+    await expect(db.exec('delete from public.meals where is_service')).rejects.toThrow(/ne peut pas être supprimé/)
+    for (const change of ["is_active=false", "is_service=false", "name='Autre'"]) {
+      await expect(db.exec(`update public.meals set ${change} where is_service`)).rejects.toThrow(/rester disponible/)
+    }
+    await expect(db.exec("insert into public.meals(name,is_service) values('Autre',true)")).rejects.toThrow(/unique/)
   })
 
   describe('passage par QR établissement', () => {
@@ -227,6 +308,10 @@ describe('réservation sans plat publié', () => {
     expect(after).toEqual(before)
     const { rows: countsAfter } = await db.query('select * from public.headcount_validations')
     expect(countsAfter).toEqual(countsBefore)
+    const { rows: defaults } = await db.query(`
+      select meal.is_service from public.menus m join public.meals meal on meal.id=m.meal_id where m.id=$1
+    `, [before[0].menu_id])
+    expect(defaults[0].is_service).toBe(true)
   })
 
   it('permet à l’ADU de modifier sans plat les membres de sa CIE avant J-2, sans contourner les contrôles', async () => {

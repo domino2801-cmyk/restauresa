@@ -305,7 +305,7 @@ export default function CduDashboardPage({ companyContext } = {}) {
                         <tr key={menu.id}>
                           <td className="py-2 pr-4 whitespace-nowrap">{formatDayLabel(menu.menu_date)}</td>
                           <td className="py-2 pr-4">{SERVICE_LABELS[menu.service]}</td>
-                          <td className="py-2 pr-4">{menu.meal?.name ?? 'Plat non publié'}</td>
+                          <td className="py-2 pr-4">{menu.meal?.name ?? 'Repas de service'}</td>
                           <td className="py-2 pr-4 text-right">{current}</td>
                           <td className="py-2 pr-4 text-right">
                             {headcount ? `${headcount.reserved_count} / ${headcount.total_members}` : '—'}

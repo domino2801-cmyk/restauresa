@@ -15,7 +15,7 @@ export default function WeeklyMenusPage() {
 
   const load = useCallback(async () => {
     const [meals, menus] = await Promise.all([
-      fetchMeals(),
+      fetchMeals({ activeOnly: true }),
       fetchMenus(toISODate(monday), toISODate(addDays(monday, 6))),
     ])
     return { meals, menus }
@@ -28,9 +28,9 @@ export default function WeeklyMenusPage() {
     [data],
   )
 
-  const optionsFor = (current) =>
+  const optionsFor = () =>
     (data?.meals ?? [])
-      .filter((meal) => meal.is_active || meal.id === current)
+      .filter((meal) => meal.is_active && !meal.is_service)
       .map((meal) => ({ value: meal.id, label: meal.name }))
 
   const change = async (day, mealId) => {
@@ -50,7 +50,7 @@ export default function WeeklyMenusPage() {
     <>
       <PageHeader
         title="Menus de la semaine"
-        subtitle="Sélectionnez uniquement le plat du déjeuner. Les réservations PDJ / DEJ / DIN restent possibles sans plat publié."
+        subtitle="Repas de service par défaut pour PDJ / DEJ / DIN. Vous pouvez choisir un autre plat pour le déjeuner."
         actions={<WeekNavigator monday={monday} onChange={setMonday} />}
       />
       <Alert tone="error" className="mb-4">
@@ -65,9 +65,9 @@ export default function WeeklyMenusPage() {
               <div className="space-y-3">
                 <Select
                   label="Déjeuner"
-                  value={menuIndex.get(`${day}|dejeuner`)?.meal_id ?? ''}
-                  placeholder="Plat non publié"
-                  options={optionsFor(menuIndex.get(`${day}|dejeuner`)?.meal_id)}
+                  value={menuIndex.get(`${day}|dejeuner`)?.meal?.is_service ? '' : menuIndex.get(`${day}|dejeuner`)?.meal_id ?? ''}
+                  placeholder="Repas de service"
+                  options={optionsFor()}
                   disabled={saving === day}
                   onChange={(e) => change(day, e.target.value)}
                 />
