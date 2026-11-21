@@ -1,15 +1,14 @@
 import { useState } from 'react'
-import { Alert, Button, Card, EmptyState, Input, PageHeader, Spinner } from '../../components/ui'
+import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader, Spinner } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
 import { errorMessage } from '../../lib/errors'
 import { deleteMeal, fetchMeals, saveMeal } from '../../services/meals'
 
 const EMPTY_MEAL = { id: null, name: '', description: '', category: '', unit_price: '', is_active: true }
-const loadMeals = () => fetchMeals({ activeOnly: true })
 
 /** Gestion du catalogue des repas. */
 export default function MealsPage() {
-  const { data: meals, error: loadError, loading, reload } = useAsync(loadMeals)
+  const { data: meals, error: loadError, loading, reload } = useAsync(fetchMeals)
   const [form, setForm] = useState(EMPTY_MEAL)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -97,7 +96,8 @@ export default function MealsPage() {
                 <li key={meal.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-navy-900">
-                      {meal.name}
+                      {meal.name}{' '}
+                      {!meal.is_active && <Badge tone="red">Inactif</Badge>}
                     </p>
                     <p className="text-xs text-steel-600">
                       {[meal.category, meal.description].filter(Boolean).join(' — ')}
@@ -107,17 +107,17 @@ export default function MealsPage() {
                     <span className="text-sm font-semibold text-olive-700">
                       {Number(meal.unit_price).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
                     </span>
-                    {!meal.is_service && <Button size="sm" variant="outline" onClick={() => setForm({ ...meal, unit_price: String(meal.unit_price) })}>
+                    <Button size="sm" variant="outline" onClick={() => setForm({ ...meal, unit_price: String(meal.unit_price) })}>
                       Modifier
-                    </Button>}
-                    {!meal.is_service && <Button
+                    </Button>
+                    <Button
                       size="sm"
                       variant="ghost"
                       aria-label={`Supprimer ${meal.name}`}
                       onClick={() => window.confirm(`Supprimer « ${meal.name} » ?`) && act(() => deleteMeal(meal.id))}
                     >
                       ✕
-                    </Button>}
+                    </Button>
                   </div>
                 </li>
               ))}
