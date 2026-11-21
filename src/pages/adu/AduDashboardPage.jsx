@@ -186,7 +186,7 @@ export default function AduDashboardPage({ companyContext } = {}) {
               <StatCard
                 label="Taux"
                 value={`${percent(view.reservedCount, data.members.length)} %`}
-                hint={view.menu?.meal?.name ?? 'Plat non publié'}
+                hint={view.menu?.meal?.name ?? 'Repas de service'}
               />
             </div>
 
@@ -204,7 +204,7 @@ export default function AduDashboardPage({ companyContext } = {}) {
                   >
                     <p className="text-xs font-semibold tracking-wider text-olive-700 uppercase">{SERVICE_LABELS[s]}</p>
                     <p className="text-2xl font-bold text-navy-900">{count ?? '—'}</p>
-                    <p className="truncate text-xs text-steel-600">{menu?.meal?.name ?? 'Plat non publié'}</p>
+                    <p className="truncate text-xs text-steel-600">{menu?.meal?.name ?? 'Repas de service'}</p>
                   </button>
                 ))}
               </div>

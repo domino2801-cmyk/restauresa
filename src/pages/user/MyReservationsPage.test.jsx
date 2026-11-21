@@ -13,7 +13,8 @@ const saturdayLabel = formatDayLabel(days[5], { weekday: 'long', day: 'numeric',
 const sundayLabel = formatDayLabel(days[6], { weekday: 'long', day: 'numeric', month: 'long' })
 const menus = [
   ...days.slice(0, 4).map((day, index) => ({
-    id: `default-dej-${index}`, menu_date: day, service: 'dejeuner', meal_id: null, meal: null,
+    id: `default-dej-${index}`, menu_date: day, service: 'dejeuner',
+    meal_id: 'service-meal', meal: { name: 'Repas de service', is_service: true },
   })),
   { id: 'pdj', menu_date: menuDate, service: 'petit_dejeuner', meal_name: 'Omelette' },
   { id: 'dej', menu_date: menuDate, service: 'dejeuner', meal_name: 'Poulet rôti' },
@@ -117,13 +118,14 @@ describe('MyReservationsPage', () => {
     expect(screen.queryByText('—')).not.toBeInTheDocument()
   })
 
-  it('permet tous les services et le week-end sans aucun plat publié', async () => {
-    const withoutDishes = async (start, end) => days
+  it('permet tous les services et le week-end avec le repas de service par défaut', async () => {
+    const defaultServices = async (start, end) => days
       .filter((day) => day >= start && day <= end)
       .flatMap((day) => ['petit_dejeuner', 'dejeuner', 'diner'].map((service) => ({
-        id: `${day}-${service}`, menu_date: day, service, meal_id: null, meal: null,
+        id: `${day}-${service}`, menu_date: day, service,
+        meal_id: 'service-meal', meal: { name: 'Repas de service', is_service: true },
       })))
-    fetchMenus.mockImplementationOnce(withoutDishes).mockImplementationOnce(withoutDishes).mockImplementationOnce(withoutDishes)
+    fetchMenus.mockImplementationOnce(defaultServices).mockImplementationOnce(defaultServices).mockImplementationOnce(defaultServices)
     await renderReservations()
     const weekdayMeals = screen.getAllByRole('checkbox').filter((input) => input.closest('tbody'))
     expect(weekdayMeals).toHaveLength(15)

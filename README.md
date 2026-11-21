@@ -102,18 +102,23 @@ Cette politique d'insertion est réservée aux administrateurs activés ; elle n
 modifie ni les échéances ni les accès des militaires, ADU, CDU ou de la restauration.
 
 Les réservations ne dépendent plus de la publication des plats : chaque date
-dispose des services **PDJ / DEJ / DIN**, même avec un plat non renseigné.
+dispose des services **PDJ / DEJ / DIN**, avec **Repas de service** par défaut.
 L'administration des menus affiche uniquement le déjeuner pour chaque jour.
 Les plats PDJ/DIN déjà renseignés et les réservations des trois services restent
 conservés ; aucun menu ni aucune réservation n'est supprimé par ce changement.
-La migration `20261002030000_reservations_without_published_meals.sql` rend
-`menus.meal_id` facultatif et ajoute `ensure_meal_services`, réservé aux comptes
+La migration `20261002030000_reservations_without_published_meals.sql` ajoute
+`ensure_meal_services`, réservé aux comptes
 activés, pour créer les services manquants de la période consultée (31 jours
 maximum par appel, sans modifier les plats existants). Les cases restent soumises
 aux échéances client et ADU. Publier, remplacer ou retirer un plat conserve
-l'identifiant du service et toutes ses réservations. Un plat absent n'a pas de
-coût connu et n'entre donc pas dans le coût estimé tant qu'il n'est pas renseigné.
-Appliquer la migration avant de publier le frontend correspondant.
+l'identifiant du service et toutes ses réservations. Le repas de service est
+créé avec un coût unitaire de 0 € (ou conserve le coût d'une entrée existante).
+Appliquer aussi `20261009000000_default_service_meals.sql` avant de publier le
+frontend : elle remplace les plats absents ou inactifs par le repas de service,
+rend `menus.meal_id` obligatoire et garantit ce défaut lors des écritures directes
+et de la désactivation d'un plat. Le repas de service ne peut être ni supprimé ni
+désactivé. Les plats inactifs sont retirés du catalogue visible et des choix de
+planification ; les données et réservations restent conservées.
 
 Chaque semaine de repas (lundi à dimanche) est clôturée **le jeudi précédent à
 14 h, heure de Paris**, changements d'heure été/hiver inclus. À partir de cet

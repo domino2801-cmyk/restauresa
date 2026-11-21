@@ -13,9 +13,10 @@ beforeEach(() => {
   fetchMeals.mockResolvedValue([
     { id: 'meal-lunch', name: 'Plat du midi', is_active: true },
     { id: 'meal-old', name: 'Ancien plat', is_active: false },
+    { id: 'meal-service', name: 'Repas de service', is_active: true, is_service: true },
   ])
   fetchMenus.mockImplementation(async (start) => [
-    { menu_date: start, service: 'dejeuner', meal_id: 'meal-old' },
+    { menu_date: start, service: 'dejeuner', meal_id: 'meal-service', meal: { is_service: true } },
     { menu_date: start, service: 'petit_dejeuner', meal_id: 'meal-lunch' },
     { menu_date: start, service: 'diner', meal_id: 'meal-lunch' },
   ])
@@ -28,11 +29,15 @@ it('affiche uniquement sept déjeuners sans proposer PDJ ou dîner', async () =>
   expect(selects).toHaveLength(7)
   expect(screen.queryByRole('combobox', { name: 'Petit-déjeuner' })).not.toBeInTheDocument()
   expect(screen.queryByRole('combobox', { name: 'Dîner' })).not.toBeInTheDocument()
-  expect(selects[0]).toHaveValue('meal-old')
+  expect(selects[0]).toHaveValue('')
+  expect(fetchMeals).toHaveBeenCalledWith({ activeOnly: true })
+  expect(screen.queryByRole('option', { name: 'Ancien plat' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('option', { name: 'Plat non publié' })).not.toBeInTheDocument()
+  expect(screen.getAllByRole('option', { name: 'Repas de service' })).toHaveLength(7)
   expect(setMenu).not.toHaveBeenCalled()
 })
 
-it('publie et retire uniquement le plat du midi sans toucher aux autres services', async () => {
+it('publie ou rétablit le repas de service du midi sans toucher aux autres services', async () => {
   render(<WeeklyMenusPage />)
   const selects = await screen.findAllByRole('combobox', { name: 'Déjeuner' })
   const start = fetchMenus.mock.calls[0][0]
